@@ -1,0 +1,22 @@
+{
+  "OG/.DS_Store": "8bd1c880d912c6cab983e701b829eab2a436fcf5d944ee268becbccec7ac7346",
+  "OG/boot.py": "4e667eff2898137422d0680c36c9dd2d19b56fb5a6e817f26b401b5aee8145a4",
+  "OG/ejex.py": "5792249cf40d49721164f2467e0b1ed6830a446e192a77d1eedefa5314998f53",
+  "OG/ejexesp.py": "6f5e5383f00ba9fe7b2543a3f43129e48236d04e7e2288954392ea91cd99bc33",
+  "OG/ejexesp1.py": "9732739c304ca6355765509d052f2be2a4ebba7a13798d84a11f2a545cd0e0c3",
+  "OG/lib/.DS_Store": "798c30387962ee7af75f25c803ad8d603acd5ce2327bdcd233bf7e6780684165",
+  "OG/lib/nanoweb.py": "61c2027cce86be4f6436cc04c9e94c6887e1428411f94afd1f00d6db8ac0e9b7",
+  "OG/lib/umodbus/__init__.py": "73406447e98c5bbea0fec8b4702df1a6bc812d3716bd302b760077021f6457ce",
+  "OG/lib/umodbus/common.py": "3ab3fc2ce92d42c6244c640a4005127e337f5e635218095cbbade0f4b37c9f98",
+  "OG/lib/umodbus/const.py": "1f1494ef2895e56821d3d4448d603dbabe490fe00baaae39259305436c929bfa",
+  "OG/lib/umodbus/functions.py": "bd8fbf345895f7978ee9a7beb5f7caa181dcca0e03c0f5037d1adbc5956b668c",
+  "OG/lib/umodbus/modbus.py": "8f6378daf16e1da241383b60870c7689d5d5edf5e9d126f25b4507de15f540dd",
+  "OG/lib/umodbus/serial.py": "2b855ef44c42f5385edafaca973ff8dbf755add2049c747e425f05288ec78498",
+  "OG/lib/umodbus/tcp.py": "3430565fb35d5ac28714b6bd551e8215589cb1e98316899bb3d348f773ff7f45",
+  "OG/lib/umodbus/typing.py": "b00fe9a1c9900a7d50546de213fe3462d85099d43e8cc48a0fee429b23830ee0",
+  "OG/lib/umodbus/version.py": "8f28d1148668976def1fc853890ba0cc0e90d1f5ac22872759cd051a2c53096b",
+  "OG/m1.py": "71c183737c621d20541bad24a78a4b4353fd64bcff8a409ec40ff771423834e7",
+  "OG/main.py": "d124adf4b9e36ad4843cec1d897ef7063a39d88a714c3e8c77c9c966a69b3b4c",
+  "OG/main1.py": "119fafe79bf0169ba56914399bb221669391af8452f014cfdff20665d2e55347",
+  "OG/receptor.py": "b4b04ab4cdf4356cd3db3c636a2e7eb911f50be3d065f562ee18908eeface0a0"
+}
