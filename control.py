@@ -37,7 +37,7 @@ class PidControl:
         u_d = self.kd*( errSat - self.ErrAnt )
         self.ErrAnt = errSat
         u_p = u_p + u_d + self.IVal
-        self.U = int( fn_saturacion( u_p, self.UMax) )
+        self.U = int(fn_saturacion(u_p, self.UMax))
         return self.U
 
     def restablece(self):
@@ -121,6 +121,7 @@ class PinInicio:
 
     def concluye_busca_inicio(self):
         self.edo = 0
+        self.paro_al_capturar = False
 
     def prepara_busca_inicio(self, parar=False):
         """Armar la siguiente transición ENT o el próximo flanco IRQ de Z.
@@ -154,6 +155,7 @@ MODO_VEL = 1
 
 class Eje:
     def __init__(self, pinInic, limits=None):
+        self.destinations = (-2147483648, 2147483647)
         self.limits = limits
         self.limit_stop = 0  # Direccion detenida; espera una nueva orden permitida.
         self.ref = self.pos = self.modo = self.cuentaDatos = 0
@@ -211,6 +213,8 @@ class Eje:
         return self.pos
 
     def mueve(self, pos):
+        if not self.destinations[0] <= pos <= self.destinations[1]:
+            raise ValueError("Destino fuera del recorrido configurado")
         self.checa_limites()
         mask = self.limits.sample() if self.limits else 0
         if blocked_direction(pos - self.lee_sensor(), mask):

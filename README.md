@@ -138,3 +138,9 @@ ENCODER_INDEX_ACTIVE_LEVEL = 1  # 1=flanco ascendente, 0=descendente
 ```
 
 Después de copiar la configuración y reiniciar, enviar `{"CMD":"BUSCAINICIO","ENTRADA":4}` o escribir `[31,4,0]` en offsets Modbus 10–12. `BI=2` indica que el primer flanco posterior al armado quedó registrado en `POSINI`. El índice no se agrega a las tuplas de límites: ENT1–ENT3 siguen siendo las tres entradas generales. [Ejemplo completo](auxiliares/docs/INICIO_Y_LIMITES.md#inicio-mediante-el-índice-z-de-una-regla-o-encoder-opción-4).
+
+## Búsqueda con paro local para el banco Flask
+
+La orden Modbus 58 usa las mismas palabras de selección que la 31. Su equivalente JSON es `{"CMD":"BUSCAINICIO_PARO","ENTRADA":1}`. El registro 30 anuncia esta función en el bit 7 y el armado o captura protegidos en el bit 6. Al capturar la primera transición, el controlador registra POSINI, indica BI=2, abre el lazo, corta PWM y bloquea la potencia hasta liberar la captura. CANCELA durante la búsqueda protegida también abre el lazo. La función histórica 31 conserva la captura sin paro. ENT1–ENT3 usan el ciclo de control y Z usa interrupción de software.
+
+La consulta de los parámetros activos por Modbus FC04, JSON y HTTP se describe en [PROTOCOLO.md](auxiliares/docs/PROTOCOLO.md#lectura-de-parámetros-vigentes).

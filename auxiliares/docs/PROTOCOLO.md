@@ -6,7 +6,7 @@ Dirección inicial **23**, UART1, **9600 8N1**. Direcciones de registro de esta 
 
 Para ejecutar, escribir con función Modbus **16 / 0x10** los tres holding registers 10, 11 y 12 juntos. El registro 10 contiene el número de comando; 11 y 12 contienen sus argumentos. También se pueden escribir primero los argumentos y por último el comando mediante función 6; nunca escribir el comando antes de terminar de cargar sus argumentos.
 
-Después de atenderlo, el firmware pone 10 a cero. La confirmación RTU de escritura significa que los registros se aceptaron, **no que terminó el movimiento ni que los parámetros pasaron la validación de aplicación**. Las órdenes inválidas se rechazan, se imprimen por consola y también se limpia 10, como protocolo sin registro de resultado específico. Leer posición y estado para dar seguimiento. Se admiten lectura 3 y escrituras 6/16; otras funciones de biblioteca no tienen registros de aplicación asociados. Broadcast no está implementado.
+Después de atenderlo, el firmware pone 10 a cero. La confirmación RTU de escritura significa que los registros se aceptaron, **no que terminó el movimiento ni que los parámetros pasaron la validación de aplicación**. Las órdenes inválidas se rechazan, se imprimen por consola y también se limpia 10, como protocolo sin registro de resultado específico. Leer posición y estado para dar seguimiento. Se admiten lecturas 3 y 4 y escrituras 6/16; otras funciones de biblioteca no tienen registros de aplicación asociados. Broadcast no está implementado.
 
 | Offset | Contenido | Tipo |
 | --- | --- | --- |
@@ -59,6 +59,33 @@ kp_regs = struct.unpack('>HH', struct.pack('>f', 0.1))
 ```
 
 Cerrar el lazo alinea la referencia a la medida actual. Enviar primero función 2 y después función 1. Las posiciones deben caber en int32 para publicar por Modbus.
+
+## Lectura de parámetros vigentes
+
+Si el bit 5 del holding register 30 está a 1, leer **33 input registers desde el offset 0 con FC04**. El bloque se genera al recibir la consulta con los valores de trabajo del eje. Puede leerse durante un fallo o con el lazo abierto. El registro 32 de FC04 es una máscara de tipos. Para el parámetro de índice i, el bit i en 1 indica int32 con signo, y en 0 indica float32 IEEE 754. Así se conservan también los umbrales enteros mayores que 2²⁴. El orden es big endian.
+
+| Índice i | Offsets FC04 | Parámetro |
+| --- | --- | --- |
+| 0 | 0–1 | KP |
+| 1 | 2–3 | KI |
+| 2 | 4–5 | KD |
+| 3 | 6–7 | IL |
+| 4 | 8–9 | UMAX |
+| 5 | 10–11 | EMAX |
+| 6 | 12–13 | HAB |
+| 7 | 14–15 | ACEL |
+| 8 | 16–17 | VEL |
+| 9 | 18–19 | EMIN |
+| 10 | 20–21 | VELSEG |
+| 11 | 22–23 | RANGO |
+| 12 | 24–25 | MAGNITUD |
+| 13 | 26–27 | ZONA |
+| 14 | 28–29 | ERRORPARAR |
+| 15 | 30–31 | UMIN |
+
+UMIN es el límite PWM negativo efectivo, siempre igual a −UMAX y de solo lectura. EMAX satura el error de entrada al PID, EMIN es la tolerancia de trayectoria y ERRORPARAR es el umbral de paro por error de seguimiento. MINPOS y MAXPOS son destinos absolutos permitidos para MUEVE. No limitan DAX ni el seguimiento continuo. Con bit 4 activo en el holding 30, leer los cuatro holding registers 40–43 por FC03 (dos int32, mínimo y máximo). FC16 desde 40 con los cuatro registros actualiza ambos en una operación. Un par inválido devuelve excepción Modbus y conserva los valores anteriores. JSON acepta `{"CMD":"DESTINOS","MINPOS":-1000,"MAXPOS":2000}` y los publica en EDOJ y PARAMETROS. El arranque del ESP32 comienza con el rango int32 completo.
+
+Por JSON serie, enviar `{"CMD":"PARAMETROS"}`. Con HTTP habilitado, usar `GET /parametros` o enviar el mismo comando a `POST /post`.
 
 ## JSON por línea
 
@@ -141,3 +168,7 @@ Configuración y comandos de inicio usan 1/2/3 para ENT1/ENT2/ENT3 y 4 para Z. L
 Habilitar `ENCODER_INDEX_ENABLED=True` y configurar `ENCODER_INDEX_ACTIVE_LEVEL` antes de reiniciar. Escribir **[31,4,0]** en offsets 10–12 (función RTU 0x10) o enviar `{"CMD":"BUSCAINICIO","ENTRADA":4}` por JSON/HTTP. `HOME_INPUT_INDEX=4` permite usar el comando sin selección; con Z deshabilitado se rechaza la opción 4.
 
 El primer flanco configurado después de armar captura POSINI y pone BI=2; reg. 36=4 identifica la fuente. POSINI no cambia en pulsos posteriores hasta rearmar, mientras Z_POS (34–35) sí sigue actualizándose. CANCELA cancela búsqueda, no el diagnóstico Z. No se pone a cero automáticamente el encoder ni se agrega un bit de entrada general al registro 30. La captura es por IRQ soft y requiere validación temporal en la placa. Ver [INICIO_Y_LIMITES.md](INICIO_Y_LIMITES.md).
+
+## Búsqueda con paro local para el banco Flask
+
+La orden Modbus 58 usa las mismas palabras de selección que la 31. Su equivalente JSON es `{"CMD":"BUSCAINICIO_PARO","ENTRADA":1}`. El registro 30 anuncia esta función en el bit 7 y el armado o captura protegidos en el bit 6. Al capturar la primera transición, el controlador registra POSINI, indica BI=2, abre el lazo, corta PWM y bloquea la potencia hasta liberar la captura. CANCELA durante la búsqueda protegida también abre el lazo. La función histórica 31 conserva la captura sin paro. ENT1–ENT3 usan el ciclo de control y Z usa interrupción de software.

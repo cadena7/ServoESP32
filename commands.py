@@ -15,6 +15,18 @@ PARAMETERS = {
 }
 
 
+# Orden público de FC04. Mantener los offsets al ampliar el mapa.
+READBACK = ('KP', 'KI', 'KD', 'IL', 'UMAX', 'EMAX', 'HAB', 'ACEL', 'VEL',
+            'EMIN', 'VELSEG', 'RANGO', 'MAGNITUD', 'ZONA', 'ERRORPARAR', 'UMIN')
+
+
+def active_value(eje, name):
+    if name == "UMIN":
+        return -eje.pid1.UMax
+    target, attr, _, _ = PARAMETERS[name]
+    return getattr(getattr(eje, target) if target else eje, attr)
+
+
 def number(value, low=None, high=None, integer=False):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError('Se requiere un número')
@@ -39,6 +51,10 @@ class Commands:
     def execute(self, obj):
         if not isinstance(obj, dict) or 'CMD' not in obj:
             raise ValueError('Se requiere un objeto con CMD')
+        if obj['CMD'] == 'PARAMETROS':
+            values = {name: active_value(self.eje, name) for name in READBACK}
+            values['MINPOS'], values['MAXPOS'] = self.eje.destinations
+            return values
         if self.hardware.fault is not None and obj['CMD'] not in ('ABRE', 'EDOJ', 'DAMEDATOS'):
             raise ValueError('Fallo de control: reiniciar y revisar el equipo')
         e = self.eje
@@ -47,6 +63,14 @@ class Commands:
             cmd = obj['CMD']
             if cmd == 'MUEVE':
                 e.mueve(number(obj.get('PAR'), -2147483648, 2147483647, True))
+            elif cmd == 'DESTINOS':
+                low = number(obj.get('MINPOS'), -2147483648, 2147483647, True)
+                high = number(obj.get('MAXPOS'), -2147483648, 2147483647, True)
+                if low >= high:
+                    raise ValueError('MINPOS debe ser menor que MAXPOS')
+                if e.pid1.Hab & 1 and not low <= e.ref <= high:
+                    raise ValueError('El destino activo está fuera del nuevo recorrido')
+                e.destinations = (low, high)
             elif cmd == 'DAX':
                 u = number(obj.get('PAR'), -65535, 65535, True)
                 e.mando_manual(u)
@@ -68,9 +92,12 @@ class Commands:
                         elif not value & 1:
                             e.abre_lazo()
                     setattr(target, attr, value)
+                if 'UMAX' in obj and abs(e.pid1.U) > e.pid1.UMax:
+                    e.actuador(e.pid1.U)
             elif cmd == 'EDOJ':
                 state = e.dict_estado()
                 state.update(self.hardware.index_state())
+                state["MINPOS"], state["MAXPOS"] = e.destinations
                 state['HOME_INPUT'] = self.hardware.home_input
                 return state
             elif cmd in ('BUSCAINICIO', 'BUSCAINICIO_PARO'):

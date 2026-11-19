@@ -18,8 +18,61 @@ def regs_to_float(a, b):
 class ModbusApp:
     def __init__(self, commands):
         from umodbus.serial import ModbusRTU
+        from commands import READBACK, active_value
+
+        class ServoRTU(ModbusRTU):
+            def _process_read_access(client, request, reg_type):
+                if reg_type == 'HREGS' and 40 <= request.register_addr < 44:
+                    start = request.register_addr - 40
+                    end = start + request.quantity
+                    if end > 4:
+                        return request.send_exception(2)
+                    low, high = commands.eje.destinations
+                    return request.send_response((int_to_regs(low) + int_to_regs(high))[start:end], signed=False)
+                if reg_type != 'IREGS':
+                    return super()._process_read_access(request, reg_type)
+                # Bloque virtual: ninguna copia permanente ni trabajo en el PID.
+                start = request.register_addr
+                end = start + request.quantity
+                types_offset = 2 * len(READBACK)
+                if end > types_offset + 1:
+                    return request.send_exception(2)
+                words = []
+                types = 0
+                for i, name in enumerate(READBACK):
+                    offset = 2 * i
+                    in_range = offset < end and offset + 1 >= start
+                    if not in_range and end <= types_offset:
+                        continue
+                    value = active_value(commands.eje, name)
+                    integer = isinstance(value, int) and -2147483648 <= value <= 2147483647
+                    if integer:
+                        types |= 1 << i
+                    if in_range:
+                        raw = struct.pack('>l' if integer else '>f', value)
+                        hi, lo = struct.unpack('>HH', raw)
+                        if offset >= start:
+                            words.append(hi)
+                        if offset + 1 < end:
+                            words.append(lo)
+                if end > types_offset:
+                    words.append(types)
+                request.send_response(words, signed=False)
+
+            def _process_write_access(client, request, reg_type):
+                if reg_type == 'HREGS' and request.register_addr == 40:
+                    if request.function != 16 or request.quantity != 4:
+                        return request.send_exception(3)
+                    low, high = struct.unpack('>ll', request.data)
+                    try:
+                        commands.execute({'CMD': 'DESTINOS', 'MINPOS': low, 'MAXPOS': high})
+                    except ValueError:
+                        return request.send_exception(3)
+                    return request.send_response()
+                return super()._process_write_access(request, reg_type)
+
         self.commands = commands
-        self.client = ModbusRTU(addr=c.MODBUS_ADDRESS, pins=(c.MODBUS_TX, c.MODBUS_RX),
+        self.client = ServoRTU(addr=c.MODBUS_ADDRESS, pins=(c.MODBUS_TX, c.MODBUS_RX),
                                 baudrate=c.MODBUS_BAUD, ctrl_pin=c.MODBUS_CTRL,
                                 uart_id=c.MODBUS_UART)
         self.client.setup_registers(registers={'HREGS': {
@@ -58,8 +111,9 @@ class ModbusApp:
         regs = []
         for key in ('X', 'XT', 'BI', 'POSINI', 'U'):
             regs.extend(int_to_regs(edo[key]))
-        home_stop = 0x80 | (0x40 if self.commands.eje.pinInicio.paro_al_capturar else 0)
-        regs.extend((edo['MODO'] | home_stop | self.commands.hardware.read_inputs() << 8,
+        # Bit 5: lectura de parámetros FC04. Bits 7/6: inicio protegido/armado.
+        capabilities = 0x10 | 0x20 | 0x80 | (0x40 if self.commands.eje.pinInicio.paro_al_capturar else 0)
+        regs.extend((edo['MODO'] | capabilities | self.commands.hardware.read_inputs() << 8,
                      edo['HAB'], edo['LIMITS']))
         z = self.commands.hardware.index_state()
         regs.append(int(z['Z_ENABLED']) | int(z['Z_LEVEL']) << 1 | int(z['Z_VALID']) << 2)

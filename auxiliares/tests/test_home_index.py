@@ -82,6 +82,30 @@ class IndexHomeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'ENCODER_INDEX_ENABLED'):
                 env.Hardware()
 
+    def test_protected_search_stops_ent_and_z_without_master(self):
+        for source in (1, 2, 3, 4):
+            with self.subTest(source=source):
+                hw, eje, cmd = self.make_hardware()
+                app = env.ModbusApp(cmd)
+                app.dispatch(58, source, 0)
+                cmd.execute({'CMD': 'DAX', 'PAR': 120})
+                self.assertGreater(hw.pwm.duty, 0)
+                hw.encoder.value(24)
+                if source == 4:
+                    self.pulse(hw, 24)
+                else:
+                    hw.inputs[source-1].value(1)
+                    eje.ejec_control()
+                self.assertEqual((hw.pwm.duty, eje.pid1.Hab, eje.pinInicio.cuenta_inicio), (0, 0, 24))
+                cmd.execute({'CMD': 'DAX', 'PAR': 120})
+                self.assertEqual(hw.pwm.duty, 0)
+                app.update()
+                self.assertEqual(app.client.get_hreg(30) & 0xc0, 0xc0)
+                app.dispatch(32, 0, 0)
+                app.update()
+                self.assertEqual(app.client.get_hreg(30) & 0xc0, 0x80)
+                self.assertEqual(hw.pwm.duty, 0)
+
     def test_only_configured_z_edge_completes_home(self):
         for level in (0, 1):
             hw, e, cmd = self.make_hardware(level=level)

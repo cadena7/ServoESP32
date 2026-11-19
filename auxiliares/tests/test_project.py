@@ -331,6 +331,51 @@ class ModbusTests(unittest.TestCase):
         clock[0] += 6000
         self.app.poll()
         return self.uart.tx[-1] if self.uart.tx else b''
+    def test_live_parameters_across_interfaces(self):
+        from commands import PARAMETERS, READBACK
+        self.assertEqual(set(READBACK), set(PARAMETERS) | {'UMIN'})
+        self.app.dispatch(53, *int_to_regs(16777217))
+        self.cmd.execute({'CMD': 'CAMBIA', 'UMAX': 123, 'KP': 0.375, 'VELSEG': -1.5})
+        expected = self.cmd.execute({'CMD': 'PARAMETROS'})
+        self.assertEqual(expected['UMIN'], -123)
+        response = self.exchange(self.frame(struct.pack('>BHH', 4, 0, 33)))
+        self.assertEqual(response[:3], bytes([23, 4, 66]))
+        types = struct.unpack_from('>H', response, 67)[0]
+        for i, name in enumerate(READBACK):
+            fmt = '>i' if types & (1 << i) else '>f'
+            value = struct.unpack_from(fmt, response, 3 + 4*i)[0]
+            self.assertAlmostEqual(value, expected[name])
+        self.assertEqual(self.exchange(self.frame(struct.pack('>BHH', 4, 1, 1))),
+                         self.frame(bytes([4, 2]) + response[5:7]))
+        self.assertEqual(self.exchange(self.frame(struct.pack('>BHH', 4, 32, 2))),
+                         self.frame(bytes([0x84, 2])))
+        self.assertTrue(self.app.client.get_hreg(30) & 32)
+
+    def test_destination_range_rtu_atomic_and_live(self):
+        def set_range(low, high):
+            return self.exchange(self.frame(struct.pack('>BHHBii', 16, 40, 4, 8, low, high)))
+        self.assertEqual(set_range(-100, 500), self.frame(struct.pack('>BHH', 16, 40, 4)))
+        self.assertEqual(set_range(250, 100), self.frame(bytes([0x90, 3])))
+        self.assertEqual(self.cmd.execute({'CMD': 'EDOJ'})['MINPOS'], -100)
+        self.cmd.execute({'CMD': 'DESTINOS', 'MINPOS': -42, 'MAXPOS': 50})
+        self.assertEqual(self.exchange(self.frame(struct.pack('>BHH', 3, 40, 4))),
+                         self.frame(struct.pack('>BBii', 3, 8, -42, 50)))
+        self.app.dispatch(1, *int_to_regs(-42))
+        with self.assertRaises(ValueError):
+            self.app.dispatch(1, *int_to_regs(-43))
+
+    def test_symmetric_pwm_limit_clamps_manual_and_pid(self):
+        self.cmd.execute({'CMD':'DAX', 'PAR': -1000})
+        self.cmd.execute({'CMD':'CAMBIA', 'UMAX':350})
+        pid = self.hw.eje.pid1
+        self.assertEqual(pid.U, -350)
+        pid.kp = 10
+        self.assertEqual(pid.ejec(-1000), -350)
+        self.assertEqual(pid.ejec(1000), 350)
+        self.assertEqual(self.cmd.execute({'CMD':'PARAMETROS'})['UMIN'], -350)
+        with self.assertRaises(ValueError):
+            self.cmd.execute({'CMD':'CAMBIA', 'UMIN':-130})
+
     def test_int_roundtrip(self):
         for value in (-2**31,-123,-1,0,1,2**31-1):
             self.assertEqual(regs_to_int(*int_to_regs(value)),value)
