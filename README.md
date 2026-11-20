@@ -6,7 +6,7 @@ Esta versión parte del software original conservado en `OG/`. Esa carpeta no se
 
 Reporte publicado: [CI-2026-03: ServoESP32](https://ceptiaunam.blogspot.com/2026/10/ci-2026-03-servoesp32-control-de.html).
 
-El [maestro Flask](../../HTML/ServoESP32_Master/README.md) se ejecuta en la computadora o Raspberry Pi y permite entonar hasta cuatro ejes por RS485.
+El [maestro Flask](https://github.com/cadena7/ServoESP32_Master/blob/main/README.md) se ejecuta en la computadora o Raspberry Pi y permite entonar hasta cuatro ejes por RS485.
 
 ## Archivos que se suben al ESP32
 
