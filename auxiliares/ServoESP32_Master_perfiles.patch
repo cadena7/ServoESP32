@@ -1,0 +1,27 @@
+--- a/ajustes_ejes.py
++++ b/ajustes_ejes.py
+@@ -9,16 +9,16 @@
+ """
+ AJUSTES = {
+     "X": {
+-        "MINPOS": None, "MAXPOS": None,
+-        "KP": None, "KI": None, "KD": None, "IL": None,
+-        "UMAX": None, "VEL": None, "ACEL": None, "VELSEG": None,
+-        "RANGO": None, "MAGNITUD": None, "ZONA": None, "ERRORPARAR": None,
++        "MINPOS": -200000, "MAXPOS": 200000,
++        "KP": 600.4, "KI": 1.5, "KD": 90.0, "IL": 200000.0,
++        "UMAX": 55000, "VEL": 30.0, "ACEL": 0.25, "VELSEG": 1.0,
++        "RANGO": 400, "MAGNITUD": 2, "ZONA": 0, "ERRORPARAR": 350,
+     },
+     "Y": {
+-        "MINPOS": None, "MAXPOS": None,
+-        "KP": None, "KI": None, "KD": None, "IL": None,
+-        "UMAX": None, "VEL": None, "ACEL": None, "VELSEG": None,
+-        "RANGO": None, "MAGNITUD": None, "ZONA": None, "ERRORPARAR": None,
++        "MINPOS": -2000000, "MAXPOS": 2000000,
++        "KP": 50.4, "KI": 1.1, "KD": 60.0, "IL": 200000.0,
++        "UMAX": 55000, "VEL": 400.0, "ACEL": 2.5, "VELSEG": 1.0,
++        "RANGO": 400, "MAGNITUD": 2, "ZONA": 0, "ERRORPARAR": 3500,
+     },
+     "Z": {
+         "MINPOS": None, "MAXPOS": None,

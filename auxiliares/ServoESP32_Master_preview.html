@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ServoESP32 · Banco de ajuste</title><style>*{box-sizing:border-box} :root{color-scheme:dark;font:15px Inter,system-ui,sans-serif;background:#101820;color:#eaf0f3}
+body{margin:0}header,main{max-width:2000px;margin:auto;padding:22px clamp(12px,2.4vw,44px)}
+header,.heading,.row,.output,.io,.legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+header,.heading{justify-content:space-between} header{border-bottom:1px solid #374854}header strong,.legend span:first-child{color:#66ddcb}
+h1,h2,h3,p{margin:0}h1{font-size:clamp(22px,3vw,34px);letter-spacing:-.035em}h2{font-size:24px}h3,summary{font-size:15px;font-weight:650}
+.bus,.heading span,small{color:#aec1c9} .bus,b,input,select{font-variant-numeric:tabular-nums}
+main{display:grid;grid-template-columns:repeat(var(--axes),minmax(0,1fr));gap:14px;align-items:start}
+article{background:#19252f;border:1px solid #394b57;border-radius:12px;padding:clamp(12px,1.4vw,24px);min-width:0}
+.status{color:#eac27f;overflow-wrap:anywhere;font-size:.85rem;margin:6px 0 16px}.online{color:#79d7ac}
+.numbers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.numbers b,.numbers small{display:block}.numbers b{font:600 clamp(14px,1.65vw,26px) monospace;overflow-wrap:anywhere}
+.legend{font-size:.8rem;margin-top:18px}.legend span:nth-child(2){color:#efb96e}.legend small{margin-left:auto}
+canvas{width:100%;height:155px;display:block;background:#131e27;border-radius:5px;margin:6px 0}
+.telemetry,.feedback,.controls p{font-size:.86rem;color:#c9d7de;line-height:1.45}.feedback:not(:empty){border-left:3px solid #eeb568;padding:6px 8px;margin-top:10px}
+.controls{padding:0;margin:0;border:0;min-width:0}.controls h3,details{border-top:1px solid #354853;margin:14px 0 8px;padding-top:12px}
+form{display:flex;align-items:end;flex-wrap:wrap;gap:6px;margin:9px 0}label{flex:1 1 78px;min-width:0;color:#bdcdd4;font-size:.81rem}
+input,select,button{font:inherit;color:inherit;border-radius:5px;border:1px solid #526772;background:#121e27;padding:7px 9px}input,select{width:100%;display:block;margin-top:4px}button{background:#263b48;cursor:pointer;font-size:.85rem}button:hover:enabled{border-color:#67d6c6}button:disabled{opacity:.45;cursor:default}form button{background:#20514d}
+.output{margin:6px 0}.output span{margin-right:auto}.io{justify-content:space-between;margin:8px 0 16px;padding-bottom:8px;border-bottom:1px solid #354853}
+[data-input],[data-output]{font-size:.82rem}[data-input]::before,[data-output]::before{content:'';display:inline-block;width:9px;height:9px;border:1px solid #758690;border-radius:50%;margin-right:5px;background:#34434d}
+[data-level="1"]::before{background:#67ddae;border-color:#67ddae}summary{cursor:pointer;margin-bottom:8px}.reset{margin-top:12px;color:#ffd6aa}
+@media(max-width:1150px){main{grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr))}}@media(max-width:600px){main{grid-template-columns:1fr}}
+.params{width:100%;border-collapse:collapse;text-align:left;font-size:.86rem}.params th,.params td{padding:4px;border-bottom:1px solid #34444f}.params th small{display:block;font-weight:400}.params form{display:flex;flex-wrap:nowrap;margin:0}.params input{width:100%;min-width:45px;margin:0}.params td[data-active],.params td[data-sent]{font-family:monospace;overflow-wrap:anywhere}
+
+.group{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}.group label{flex:0 1 auto}input[type=checkbox]{display:inline-block;width:auto}a{color:#66ddcb}.numbers{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+[hidden]{display:none !important}footer{text-align:center;padding:16px;color:#bdcdd4;font-size:.85rem}
+</style>
+</head>
+<body data-poll="500"><header><div><strong>ServoESP32</strong><h1>Banco de ajuste</h1></div>
+<span class="bus">Vista previa local · dos ejes simulados</span></header>
+<main style="--axes:2">
+
+<article data-axis="X" data-address="22" data-url="/api/X">
+<div class="heading"><h2>Eje X</h2><span>RTU 22 · OG</span></div>
+<p class="status" role="status">Conectando…</p>
+<div class="numbers">
+<div><small>Posición X</small><b data-field="x">—</b></div>
+<div><small>Referencia XT</small><b data-field="xt">—</b></div>
+<div><small>Mando U</small><b data-field="u">—</b></div>
+<div><small>Destino solicitado</small><b data-field="target">—</b></div></div>
+<div class="legend"><span>● Posición</span><span>● Trayectoria</span><small>Últimos 60 s · cuentas</small></div>
+<canvas aria-label="Historial de posición y trayectoria"></canvas>
+<p class="telemetry" data-field="mode">—</p>
+<p class="feedback" role="status"></p>
+<fieldset class="controls" disabled>
+<h3>Movimiento</h3>
+<div class="row"><button data-cmd="cerrar">Cerrar lazo</button><button data-cmd="abrir">Abrir lazo</button></div>
+<form data-action="mover"><button type="button" data-flip-sign aria-label="Invertir signo de destino absoluto" title="Invertir signo">±</button><label>Destino absoluto · cuentas<input name="value" type="number" step="1" min="-2147483648" max="2147483647" required></label><button>Mover</button></form>
+<form data-action="relativo"><button type="button" data-flip-sign aria-label="Invertir signo de desplazamiento relativo" title="Invertir signo">±</button><label>Desplazamiento · cuentas<input type="number" name="value" step="1" required></label><label>Desde<select name="base"><option value="relativo">Posición medida X</option><option value="relativo_destino">Último destino</option></select></label><button>Mover relativo</button></form>
+<section><h3>Ensayos de referencia</h3><p data-field="pattern">—</p>
+<form data-action="ensayo"><label>Modo<select name="mode"><option>ESCALON</option><option>ALEATORIO</option><option>SENO</option></select></label>
+<label>Amplitud ±cuentas<input name="amplitude" type="number" min="1" step="1" value="100" required></label>
+<label>Intervalo · s<input data-modes="ESCALON ALEATORIO" name="interval" type="number" min="0.1" step="any" value="10" required></label>
+<label>Seno · Hz<input data-modes="SENO" name="frequency" type="number" min="0.000001" step="any" value="0.05" required></label>
+<label>Factor VEL seno<input data-modes="SENO" name="factor" type="number" min="0.000001" step="any" value="1" required></label>
+<label>Fase seno · grados<input data-modes="SENO" name="phase" type="number" step="any" min="-360" max="360" value="0" required></label>
+<label><input data-modes="SENO" name="auto_vel" type="checkbox" checked> Ajustar VEL para seno</label>
+<button>Iniciar ensayo</button><button value="ajustar_ensayo">Aplicar al ensayo activo</button></form><div class="group"><label><input type="checkbox" data-group> Incluir X en seno conjunto</label> <button type="button" data-start-group>Iniciar seno en ejes seleccionados</button> <span data-group-status role="status"></span></div><button data-cmd="normal">Finalizar ensayo · modo normal</button> <a data-csv hidden href="/api/X/escalon.csv">Descargar escalón CSV</a></section>
+<h3>Entradas y salidas</h3>
+<div class="io"><span data-input="1">ENT1 <b>—</b></span><span data-input="2">ENT2 <b>—</b></span><span data-input="3">ENT3 <b>—</b></span></div>
+<div class="output"><span data-output="1">SAL1 <b>—</b></span>
+<button data-cmd="encender" data-value="1" aria-label="Encender SAL1">Encender</button>
+<button data-cmd="apagar" data-value="1" aria-label="Apagar SAL1">Apagar</button></div><div class="output"><span data-output="2">SAL2 <b>—</b></span>
+<button data-cmd="encender" data-value="2" aria-label="Encender SAL2">Encender</button>
+<button data-cmd="apagar" data-value="2" aria-label="Apagar SAL2">Apagar</button></div><div class="output"><span data-output="3">SAL3 <b>—</b></span>
+<button data-cmd="encender" data-value="3" aria-label="Encender SAL3">Encender</button>
+<button data-cmd="apagar" data-value="3" aria-label="Apagar SAL3">Apagar</button></div>
+<p data-field="limits">—</p>
+<section><h3>Entonación</h3><p data-field="velocity">—</p>
+<form data-action="limites"><label>MINPOS · cuentas<input type="number" name="min" step="1" required></label><label>MAXPOS · cuentas<input type="number" name="max" step="1" required></label><button>Aplicar recorrido</button></form>
+<p data-field="bounds">—</p>
+<p data-field="param_status"></p>
+<table class="params"><thead><tr><th>Parámetro</th><th>Vigente en ESP32</th><th>Último enviado</th><th>Nuevo valor</th></tr></thead><tbody>
+<tr><th>KP<small></small></th><td data-active="KP">—</td><td data-sent="KP">—</td><td><form data-action="KP"><input aria-label="Nuevo KP" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>KI<small></small></th><td data-active="KI">—</td><td data-sent="KI">—</td><td><form data-action="KI"><input aria-label="Nuevo KI" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>KD<small></small></th><td data-active="KD">—</td><td data-sent="KD">—</td><td><form data-action="KD"><input aria-label="Nuevo KD" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>IL<small></small></th><td data-active="IL">—</td><td data-sent="IL">—</td><td><form data-action="IL"><input aria-label="Nuevo IL" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>UMAX<small>PWM</small></th><td data-active="UMAX">—</td><td data-sent="UMAX">—</td><td><form data-action="UMAX"><input aria-label="Nuevo UMAX" name="value" type="number" step="1" min="0" max="65535" required><button>Enviar</button></form></td></tr><tr><th>ACEL<small>cuentas/muestra²</small></th><td data-active="ACEL">—</td><td data-sent="ACEL">—</td><td><form data-action="ACEL"><input aria-label="Nuevo ACEL" name="value" type="number" step="any" min="1e-12"  required><button>Enviar</button></form></td></tr><tr><th>VEL<small>cuentas/muestra</small></th><td data-active="VEL">—</td><td data-sent="VEL">—</td><td><form data-action="VEL"><input aria-label="Nuevo VEL" name="value" type="number" step="any" min="1e-12"  required><button>Enviar</button></form></td></tr><tr><th>VELSEG<small>cuentas/muestra</small></th><td data-active="VELSEG">—</td><td data-sent="VELSEG">—</td><td><form data-action="VELSEG"><input aria-label="Nuevo VELSEG" name="value" type="number" step="any"   required><button>Enviar</button></form></td></tr><tr><th>RANGO<small>cuentas</small></th><td data-active="RANGO">—</td><td data-sent="RANGO">—</td><td><form data-action="RANGO"><input aria-label="Nuevo RANGO" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>MAGNITUD<small></small></th><td data-active="MAGNITUD">—</td><td data-sent="MAGNITUD">—</td><td><form data-action="MAGNITUD"><input aria-label="Nuevo MAGNITUD" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>Zona muerta<small>cuentas</small></th><td data-active="ZONA">—</td><td data-sent="ZONA">—</td><td><form data-action="ZONA"><input aria-label="Nuevo ZONA" name="value" type="number" step="1" min="0" max="2147483647" required><button>Enviar</button></form></td></tr><tr><th>ERRORMAX<small>cuentas</small></th><td data-active="ERRORPARAR">—</td><td data-sent="ERRORPARAR">—</td><td><form data-action="ERRORPARAR"><input aria-label="Nuevo ERRORPARAR" name="value" type="number" step="1" min="0" max="2147483647" required><button>Enviar</button></form></td></tr>
+
+<tr><th>UMIN<small>PWM mínimo (−UMAX)</small></th><td data-active="UMIN">—</td><td data-sent="UMIN">—</td><td>Solo lectura</td></tr>
+<tr><th>MINPOS<small>Destino mínimo · cuentas</small></th><td data-active="MINPOS">—</td><td data-sent="MINPOS">—</td><td><form data-action="MINPOS"><input aria-label="Nuevo MINPOS" name="value" type="number" step="1" min="-2147483648" max="2147483647" required><button>Enviar</button></form></td></tr>
+<tr><th>MAXPOS<small>Destino máximo · cuentas</small></th><td data-active="MAXPOS">—</td><td data-sent="MAXPOS">—</td><td><form data-action="MAXPOS"><input aria-label="Nuevo MAXPOS" name="value" type="number" step="1" min="-2147483648" max="2147483647" required><button>Enviar</button></form></td></tr>
+<tr><th>EMAX<small>Saturación del error PID</small></th><td data-active="EMAX">—</td><td data-sent="EMAX">—</td><td>Solo lectura</td></tr>
+<tr><th>EMIN<small>Tolerancia de trayectoria</small></th><td data-active="EMIN">—</td><td data-sent="EMIN">—</td><td>Solo lectura</td></tr>
+<tr><th>HAB<small>Bits de lazo e integral</small></th><td data-active="HAB">—</td><td data-sent="HAB">—</td><td>Solo lectura</td></tr>
+</tbody></table><button type="button" data-export>Exportar parámetros de X (.json)</button> <span data-export-status role="status"></span></section>
+<section><h3>Búsqueda de inicio</h3>
+<p data-field="home">—</p><p data-field="home_phase">—</p>
+<label>Modo de búsqueda<select data-home-mode>
+<option value="auto">Automático según firmware</option>
+<option value="legacy">Legacy (OG) · paro desde Flask</option>
+<option value="protected">Mejorado · paro en el ESP32</option>
+</select></label>
+<form data-action="inicio"><label>Fuente<select name="value">
+<option value="0">Predeterminada</option><option value="1">ENT1</option><option value="2">ENT2</option><option value="3">ENT3</option><option value="4">Índice Z</option>
+</select></label><button>Armar solo captura manual</button></form><p>Para capturar manualmente, arma el sensor y usa Mover o Mover relativo. En Legacy, Flask ordena el paro al leer la marca. En Mejorado, el ESP32 corta el PWM al capturarla.</p>
+<form data-action="inicio_auto">
+<label>Paso con signo · cuentas<input name="step" type="number" step="1" required></label>
+<label>Recorrido máximo con signo · cuentas<input name="travel" type="number" step="1" required></label>
+
+<label>Offset desde la marca · cuentas<input name="offset" type="number" step="1" value="-120"></label>
+<label>Tolerancia · cuentas<input name="tolerance" type="number" step="1" min="0" value="0" required></label>
+<label>Tiempo máximo · s<input name="timeout" type="number" step="any" min="1" max="3600" value="60" required></label>
+<button value="inicio_marca">Buscar inicio en la marca</button>
+<button value="inicio_offset">Buscar inicio con offset</button>
+<p>El recorrido se mide desde la posición inicial y lleva el mismo signo que el paso. El offset se suma a la marca solo al buscar con offset. Ambas búsquedas automáticas terminan con referencia cero y lazo cerrado.</p></form><button data-cmd="cancelar">Cancelar búsqueda</button></section>
+<section><h3>Mando manual y seguimiento</h3><form data-action="manual"><button type="button" data-flip-sign aria-label="Invertir signo de PWM manual" title="Invertir signo">±</button><label>PWM manual · entero de −65535 a +65535<input type="number" name="value" min="-65535" max="65535" step="1" required></label><button>Aplicar PWM</button></form><p>Aplicar PWM abre el lazo. El controlador limita la magnitud a UMAX.</p>
+<form data-action="seguir_con_velocidad"><button type="button" data-flip-sign aria-label="Invertir signo de VELSEG">±</button><label>Velocidad de seguimiento (VELSEG) · cuentas/muestra<input type="number" name="value" step="any" required></label><button>Activar seguimiento</button></form><button data-cmd="dejar_seguir">Quitar seguimiento</button></section>
+<button class="reset" data-cmd="restablecer">Restablecer eje…</button>
+</fieldset></article>
+<article data-axis="Y" data-address="23" data-url="/api/Y">
+<div class="heading"><h2>Eje Y</h2><span>RTU 23 · Nuevo</span></div>
+<p class="status" role="status">Conectando…</p>
+<div class="numbers">
+<div><small>Posición X</small><b data-field="x">—</b></div>
+<div><small>Referencia XT</small><b data-field="xt">—</b></div>
+<div><small>Mando U</small><b data-field="u">—</b></div>
+<div><small>Destino solicitado</small><b data-field="target">—</b></div></div>
+<div class="legend"><span>● Posición</span><span>● Trayectoria</span><small>Últimos 60 s · cuentas</small></div>
+<canvas aria-label="Historial de posición y trayectoria"></canvas>
+<p class="telemetry" data-field="mode">—</p>
+<p class="feedback" role="status"></p>
+<fieldset class="controls" disabled>
+<h3>Movimiento</h3>
+<div class="row"><button data-cmd="cerrar">Cerrar lazo</button><button data-cmd="abrir">Abrir lazo</button></div>
+<form data-action="mover"><button type="button" data-flip-sign aria-label="Invertir signo de destino absoluto" title="Invertir signo">±</button><label>Destino absoluto · cuentas<input name="value" type="number" step="1" min="-2147483648" max="2147483647" required></label><button>Mover</button></form>
+<form data-action="relativo"><button type="button" data-flip-sign aria-label="Invertir signo de desplazamiento relativo" title="Invertir signo">±</button><label>Desplazamiento · cuentas<input type="number" name="value" step="1" required></label><label>Desde<select name="base"><option value="relativo">Posición medida X</option><option value="relativo_destino">Último destino</option></select></label><button>Mover relativo</button></form>
+<section><h3>Ensayos de referencia</h3><p data-field="pattern">—</p>
+<form data-action="ensayo"><label>Modo<select name="mode"><option>ESCALON</option><option>ALEATORIO</option><option>SENO</option></select></label>
+<label>Amplitud ±cuentas<input name="amplitude" type="number" min="1" step="1" value="100" required></label>
+<label>Intervalo · s<input data-modes="ESCALON ALEATORIO" name="interval" type="number" min="0.1" step="any" value="10" required></label>
+<label>Seno · Hz<input data-modes="SENO" name="frequency" type="number" min="0.000001" step="any" value="0.05" required></label>
+<label>Factor VEL seno<input data-modes="SENO" name="factor" type="number" min="0.000001" step="any" value="1" required></label>
+<label>Fase seno · grados<input data-modes="SENO" name="phase" type="number" step="any" min="-360" max="360" value="0" required></label>
+<label><input data-modes="SENO" name="auto_vel" type="checkbox" checked> Ajustar VEL para seno</label>
+<button>Iniciar ensayo</button><button value="ajustar_ensayo">Aplicar al ensayo activo</button></form><div class="group"><label><input type="checkbox" data-group> Incluir Y en seno conjunto</label> <button type="button" data-start-group>Iniciar seno en ejes seleccionados</button> <span data-group-status role="status"></span></div><button data-cmd="normal">Finalizar ensayo · modo normal</button> <a data-csv hidden href="/api/Y/escalon.csv">Descargar escalón CSV</a></section>
+<h3>Entradas y salidas</h3>
+<div class="io"><span data-input="1">ENT1 <b>—</b></span><span data-input="2">ENT2 <b>—</b></span><span data-input="3">ENT3 <b>—</b></span></div>
+<div class="output"><span data-output="1">SAL1 <b>—</b></span>
+<button data-cmd="encender" data-value="1" aria-label="Encender SAL1">Encender</button>
+<button data-cmd="apagar" data-value="1" aria-label="Apagar SAL1">Apagar</button></div><div class="output"><span data-output="2">SAL2 <b>—</b></span>
+<button data-cmd="encender" data-value="2" aria-label="Encender SAL2">Encender</button>
+<button data-cmd="apagar" data-value="2" aria-label="Apagar SAL2">Apagar</button></div><div class="output"><span data-output="3">SAL3 <b>—</b></span>
+<button data-cmd="encender" data-value="3" aria-label="Encender SAL3">Encender</button>
+<button data-cmd="apagar" data-value="3" aria-label="Apagar SAL3">Apagar</button></div>
+<p data-field="limits">—</p>
+<section><h3>Entonación</h3><p data-field="velocity">—</p>
+<form data-action="limites"><label>MINPOS · cuentas<input type="number" name="min" step="1" required></label><label>MAXPOS · cuentas<input type="number" name="max" step="1" required></label><button>Aplicar recorrido</button></form>
+<p data-field="bounds">—</p>
+<p data-field="param_status"></p>
+<table class="params"><thead><tr><th>Parámetro</th><th>Vigente en ESP32</th><th>Último enviado</th><th>Nuevo valor</th></tr></thead><tbody>
+<tr><th>KP<small></small></th><td data-active="KP">—</td><td data-sent="KP">—</td><td><form data-action="KP"><input aria-label="Nuevo KP" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>KI<small></small></th><td data-active="KI">—</td><td data-sent="KI">—</td><td><form data-action="KI"><input aria-label="Nuevo KI" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>KD<small></small></th><td data-active="KD">—</td><td data-sent="KD">—</td><td><form data-action="KD"><input aria-label="Nuevo KD" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>IL<small></small></th><td data-active="IL">—</td><td data-sent="IL">—</td><td><form data-action="IL"><input aria-label="Nuevo IL" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>UMAX<small>PWM</small></th><td data-active="UMAX">—</td><td data-sent="UMAX">—</td><td><form data-action="UMAX"><input aria-label="Nuevo UMAX" name="value" type="number" step="1" min="0" max="65535" required><button>Enviar</button></form></td></tr><tr><th>ACEL<small>cuentas/muestra²</small></th><td data-active="ACEL">—</td><td data-sent="ACEL">—</td><td><form data-action="ACEL"><input aria-label="Nuevo ACEL" name="value" type="number" step="any" min="1e-12"  required><button>Enviar</button></form></td></tr><tr><th>VEL<small>cuentas/muestra</small></th><td data-active="VEL">—</td><td data-sent="VEL">—</td><td><form data-action="VEL"><input aria-label="Nuevo VEL" name="value" type="number" step="any" min="1e-12"  required><button>Enviar</button></form></td></tr><tr><th>VELSEG<small>cuentas/muestra</small></th><td data-active="VELSEG">—</td><td data-sent="VELSEG">—</td><td><form data-action="VELSEG"><input aria-label="Nuevo VELSEG" name="value" type="number" step="any"   required><button>Enviar</button></form></td></tr><tr><th>RANGO<small>cuentas</small></th><td data-active="RANGO">—</td><td data-sent="RANGO">—</td><td><form data-action="RANGO"><input aria-label="Nuevo RANGO" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>MAGNITUD<small></small></th><td data-active="MAGNITUD">—</td><td data-sent="MAGNITUD">—</td><td><form data-action="MAGNITUD"><input aria-label="Nuevo MAGNITUD" name="value" type="number" step="any" min="0"  required><button>Enviar</button></form></td></tr><tr><th>Zona muerta<small>cuentas</small></th><td data-active="ZONA">—</td><td data-sent="ZONA">—</td><td><form data-action="ZONA"><input aria-label="Nuevo ZONA" name="value" type="number" step="1" min="0" max="2147483647" required><button>Enviar</button></form></td></tr><tr><th>ERRORMAX<small>cuentas</small></th><td data-active="ERRORPARAR">—</td><td data-sent="ERRORPARAR">—</td><td><form data-action="ERRORPARAR"><input aria-label="Nuevo ERRORPARAR" name="value" type="number" step="1" min="0" max="2147483647" required><button>Enviar</button></form></td></tr>
+
+<tr><th>UMIN<small>PWM mínimo (−UMAX)</small></th><td data-active="UMIN">—</td><td data-sent="UMIN">—</td><td>Solo lectura</td></tr>
+<tr><th>MINPOS<small>Destino mínimo · cuentas</small></th><td data-active="MINPOS">—</td><td data-sent="MINPOS">—</td><td><form data-action="MINPOS"><input aria-label="Nuevo MINPOS" name="value" type="number" step="1" min="-2147483648" max="2147483647" required><button>Enviar</button></form></td></tr>
+<tr><th>MAXPOS<small>Destino máximo · cuentas</small></th><td data-active="MAXPOS">—</td><td data-sent="MAXPOS">—</td><td><form data-action="MAXPOS"><input aria-label="Nuevo MAXPOS" name="value" type="number" step="1" min="-2147483648" max="2147483647" required><button>Enviar</button></form></td></tr>
+<tr><th>EMAX<small>Saturación del error PID</small></th><td data-active="EMAX">—</td><td data-sent="EMAX">—</td><td>Solo lectura</td></tr>
+<tr><th>EMIN<small>Tolerancia de trayectoria</small></th><td data-active="EMIN">—</td><td data-sent="EMIN">—</td><td>Solo lectura</td></tr>
+<tr><th>HAB<small>Bits de lazo e integral</small></th><td data-active="HAB">—</td><td data-sent="HAB">—</td><td>Solo lectura</td></tr>
+</tbody></table><button type="button" data-export>Exportar parámetros de Y (.json)</button> <span data-export-status role="status"></span></section>
+<section><h3>Búsqueda de inicio</h3>
+<p data-field="home">—</p><p data-field="home_phase">—</p>
+<label>Modo de búsqueda<select data-home-mode>
+<option value="auto">Automático según firmware</option>
+<option value="legacy">Legacy (OG) · paro desde Flask</option>
+<option value="protected">Mejorado · paro en el ESP32</option>
+</select></label>
+<form data-action="inicio"><label>Fuente<select name="value">
+<option value="0">Predeterminada</option><option value="1">ENT1</option><option value="2">ENT2</option><option value="3">ENT3</option><option value="4">Índice Z</option>
+</select></label><button>Armar solo captura manual</button></form><p>Para capturar manualmente, arma el sensor y usa Mover o Mover relativo. En Legacy, Flask ordena el paro al leer la marca. En Mejorado, el ESP32 corta el PWM al capturarla.</p>
+<form data-action="inicio_auto">
+<label>Paso con signo · cuentas<input name="step" type="number" step="1" required></label>
+<label>Recorrido máximo con signo · cuentas<input name="travel" type="number" step="1" required></label>
+
+<label>Offset desde la marca · cuentas<input name="offset" type="number" step="1" value="80"></label>
+<label>Tolerancia · cuentas<input name="tolerance" type="number" step="1" min="0" value="0" required></label>
+<label>Tiempo máximo · s<input name="timeout" type="number" step="any" min="1" max="3600" value="60" required></label>
+<button value="inicio_marca">Buscar inicio en la marca</button>
+<button value="inicio_offset">Buscar inicio con offset</button>
+<p>El recorrido se mide desde la posición inicial y lleva el mismo signo que el paso. El offset se suma a la marca solo al buscar con offset. Ambas búsquedas automáticas terminan con referencia cero y lazo cerrado.</p></form><button data-cmd="cancelar">Cancelar búsqueda</button></section>
+<section><h3>Mando manual y seguimiento</h3><form data-action="manual"><button type="button" data-flip-sign aria-label="Invertir signo de PWM manual" title="Invertir signo">±</button><label>PWM manual · entero de −65535 a +65535<input type="number" name="value" min="-65535" max="65535" step="1" required></label><button>Aplicar PWM</button></form><p>Aplicar PWM abre el lazo. El controlador limita la magnitud a UMAX.</p>
+<form data-action="seguir_con_velocidad"><button type="button" data-flip-sign aria-label="Invertir signo de VELSEG">±</button><label>Velocidad de seguimiento (VELSEG) · cuentas/muestra<input type="number" name="value" step="any" required></label><button>Activar seguimiento</button></form><button data-cmd="dejar_seguir">Quitar seguimiento</button></section>
+<button class="reset" data-cmd="restablecer">Restablecer eje…</button>
+</fieldset></article></main><footer>Programado por Edgar Omar Cadena Zepeda</footer><script>// Simulador aislado por eje para abrir esta página desde el disco.
+const demo = {};
+for (const [i,panel] of Array.from(document.querySelectorAll("article")).entries()) {
+  demo[panel.dataset.url] = {x:0,xt:0,u:0,hab:1,inputs:0,outputs:0,limits:0,tracking:0,
+    bi:0,z:i,home:1,posini:0,protected_home:!!i,bounds:[-10000,10000],target:null,
+    simulated:true,has_bounds:!!i,has_parameters:!!i,active:{KP:.1,KI:.001,KD:.023,IL:1000,UMAX:50000,EMAX:4000,EMIN:10,VELSEG:0,RANGO:500,MAGNITUD:1,ZONA:2,ERRORPARAR:1000},sent:{VEL:5,ACEL:.1},last_vel:5,pattern:"NORMAL",offset:i,home_phase:null};
+}
+async function fetch(url,options={}) {
+  const s=demo[url], now=performance.now()/1000;
+  const response=(message,error=false)=>({ok:!error,json:async()=>error?{error:message}:{message}});
+  function pattern(state,v) {
+    state.plan=v; state.pattern=v.mode; state.epoch=now;
+    state.last_vel=v.mode==="SENO" && v.auto_vel ? +(2*Math.PI*v.frequency*v.amplitude*.01*v.factor).toFixed(3) : state.sent.VEL;
+  }
+  if(options.method==="POST"){
+    const {cmd,value:v}=JSON.parse(options.body);
+    switch(cmd){
+      case "ensayo_grupo": for(const [axis,plan] of Object.entries(v)) pattern(demo["/api/"+axis],plan); break;
+      case "ensayo": case "ajustar_ensayo": pattern(s,v);break;
+      case "normal": s.pattern="NORMAL";s.last_vel=s.sent.VEL;break;
+      case "cerrar": s.hab=1;break;
+      case "restablecer": s.x=s.xt=0;
+      case "abrir": case "cancelar": s.hab=s.u=s.bi=s.tracking=0;s.plan=null;s.pattern="NORMAL";s.home_phase=s.target=null;s.auto=false;break;
+      case "inicio": case "inicio_marca": case "inicio_offset":
+        s.searchMode=v.mode==="auto"?(s.protected_home?"protected":"legacy"):v.mode;
+        if(s.searchMode==="protected" && !s.protected_home)return response("El OG usa Legacy.",true);
+        if(!s.protected_home && v.source>1)return response("El OG usa ENT1.",true);
+        s.home=(v?.source??v)||1;s.bi=1;s.hab=s.u=0;s.home_phase="Esperando marca";s.markTime=cmd==="inicio"?Infinity:now+2;s.auto=cmd!=="inicio";s.delta=cmd==="inicio_offset"?v.offset:0;
+        if(s.auto){s.hab=1;s.target=s.x+Math.sign(v.step)*Math.min(Math.abs(v.step),Math.abs(v.travel));}
+        if(s.auto)s.last_search={modo:s.searchMode,fuente_seleccionada:v.source,paso_cuentas:v.step,recorrido_maximo_cuentas:v.travel,offset_cuentas:s.delta,tolerancia_cuentas:v.tolerance,tiempo_maximo_s:v.timeout};s.pattern="NORMAL";break;
+      case "mover": case "relativo": case "relativo_destino": {
+        if(cmd==="relativo_destino" && s.target==null)return response("Primero envíe un destino.",true);
+        const dest=v+(cmd==="relativo"?s.x:cmd==="relativo_destino"?s.target:0);
+        if(dest<s.bounds[0]||dest>s.bounds[1])return response("Destino fuera de recorrido.",true);
+        if(s.bi===1 && !s.auto && dest!==s.x){s.hab=1;s.markTime=now+1;}
+        s.target=dest;s.pattern="NORMAL";break;
+      }
+      case "manual": s.u=v;s.hab=0;break;
+      case "encender": s.outputs|=1<<(v-1);break;
+      case "apagar": s.outputs&=~(1<<(v-1));break;
+      case "MINPOS": case "MAXPOS":
+        if (cmd==="MINPOS" ? v>=s.bounds[1] : v<=s.bounds[0]) return response("Revise el recorrido.",true);
+        s.bounds[cmd==="MINPOS"?0:1]=v;
+        if(s.has_bounds)Object.assign(s.sent,{MINPOS:s.bounds[0],MAXPOS:s.bounds[1]});break;
+      case "limites": if(v.min>=v.max)return response("Revise el recorrido.",true);s.bounds=[v.min,v.max];if(s.has_bounds)Object.assign(s.sent,{MINPOS:v.min,MAXPOS:v.max});break;
+      case "seguir_con_velocidad": s.sent.VELSEG=v;s.tracking=1;break;
+      case "dejar_seguir": s.tracking=0;break;
+      default: s.sent[cmd]=v;if(cmd==="VEL")s.last_vel=v;
+    }
+    return response("Aplicado en la vista previa.");
+  }
+  if(s.bi===1 && now>=s.markTime){
+    s.posini=s.x;s.bi=2;
+    if(s.searchMode==="legacy")s.home_phase="Marca capturada · esperando sondeo de Flask";
+  }
+  if(s.bi===2 && (s.home_phase==="Esperando marca" || s.home_phase==="Marca capturada · esperando sondeo de Flask") && (s.searchMode==="protected" || now>s.markTime+.5)){
+    s.hab=s.u=0;s.target=null;
+    s.home_phase=s.auto?"Verificando paro en la marca":null;s.notice="Captura simulada · eje detenido.";s.resume=now+1;
+  }
+  if(s.home_phase==="Verificando paro en la marca" && s.auto && now>=s.resume){
+    s.bi=0;s.hab=1;s.target=s.posini+s.delta;s.home_phase="Regresando al origen";
+  }
+  if(s.home_phase==="Regresando al origen" && Math.abs(s.x-s.target)<=1){
+    s.x=s.xt=s.target=0;s.hab=1;s.home_phase=null;s.notice="Eje listo · referencia 0 y lazo cerrado.";
+  }
+  if(s.hab){
+    const p=s.plan,t=now-s.epoch;
+    if(s.pattern!=="NORMAL")s.target=Math.round(p.amplitude*(p.mode==="SENO"?Math.sin(2*Math.PI*t*p.frequency+p.phase*Math.PI/180):p.mode==="ESCALON"?(Math.floor(t/p.interval)%2?-1:1):Math.sin(Math.floor(t/p.interval)*251)));
+    s.xt=s.target??Math.round(220*Math.sin(now+s.offset));s.x+=Math.round((s.xt-s.x)*.4);s.u=s.xt-s.x;
+  }
+  s.inputs=Math.floor(now+s.offset)%8;
+  if(!s.has_parameters)s.active=null;
+  else Object.assign(s.active,s.sent,{VEL:s.last_vel,HAB:s.hab,UMIN:-(s.sent.UMAX??50000),MINPOS:s.bounds[0],MAXPOS:s.bounds[1]});
+  return {ok:true,json:async()=>s};
+}
+"use strict";
+function testValues(form) {
+  const data = Object.fromEntries(new FormData(form));
+  data.auto_vel = form.elements.auto_vel.checked;
+  for (const name of ["amplitude","interval","frequency","factor","phase"]) {
+    if (name in data) data[name] = Number(data[name]);
+  }
+  return data;
+}
+const groupButtons = document.querySelectorAll("[data-start-group]");
+for (const button of groupButtons) button.addEventListener("click", async () => {
+  const status = button.parentElement.querySelector("[data-group-status]");
+  const plans = {}; let url;
+  for (const control of groupButtons) control.disabled = true;
+  try {
+    for (const box of document.querySelectorAll("[data-group]:checked")) {
+      const panel = box.closest("article"), form = panel.querySelector('[data-action="ensayo"]');
+      if (box.disabled || panel.querySelector("fieldset").disabled) throw Error("Eje sin comunicación.");
+      if (!form.reportValidity()) return;
+      plans[panel.dataset.axis] = {...testValues(form), mode:"SENO"};
+      url = panel.dataset.url;
+    }
+    if (!url) throw Error("Seleccione al menos un eje.");
+    const res = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd:"ensayo_grupo",value:plans})});
+    const data = await res.json();
+    status.textContent = data.error || data.message;
+  } catch (e) {status.textContent = e.message;}
+  finally {for (const control of groupButtons) control.disabled = false;}
+});
+for (const panel of document.querySelectorAll("article")) {
+  const find = selector => panel.querySelector(selector);
+  const field = (name, value) => { find('[data-field="'+name+'"]').textContent = value; };
+  const controls = find("fieldset");
+  const status = find(".status");
+  const feedback = find(".feedback");
+  const testForm = find('[data-action="ensayo"]');
+  const group = find(".group");
+  function showTestFields() {
+    const sine = testForm.elements.mode.value === "SENO";
+    for (const input of testForm.querySelectorAll("[data-modes]")) {
+      const visible = input.dataset.modes.split(" ").includes(testForm.elements.mode.value)
+        && (input.name !== "factor" || testForm.elements.auto_vel.checked);
+      input.disabled = !visible;
+      input.closest("label").hidden = !visible;
+    }
+    if (group) {
+      group.hidden = !sine;
+      if (!sine) group.querySelector("[data-group]").checked = false;
+    }
+  }
+  testForm.addEventListener("change", showTestFields);
+  showTestFields();
+  const samples = [];
+  let online = false, writing = false;
+  const canvas = find("canvas");
+  function draw() {
+    const w = canvas.clientWidth, h = canvas.clientHeight, ratio = window.devicePixelRatio || 1;
+    canvas.width = w * ratio; canvas.height = h * ratio;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(ratio, ratio);
+    const now = performance.now();
+    while (samples.length && now - samples[0].t > 60000) samples.shift();
+    const values = samples.filter(s => s.x != null).flatMap(s => [s.x, s.xt]);
+    if (!values.length) return;
+    const lo = Math.min(...values), hi = Math.max(...values);
+    const y = v => hi === lo ? h/2 : 12+(h-24)*(hi-v)/(hi-lo);
+    ctx.font = "11px monospace"; ctx.fillStyle = "#abbfc7";
+    const left = Math.max(32,ctx.measureText(String(lo)).width+8,ctx.measureText(String(hi)).width+8);
+    for (const v of new Set([lo, hi])) {
+      ctx.fillText(String(v), 2, y(v)+3);
+      ctx.strokeStyle = "#344652"; ctx.beginPath(); ctx.moveTo(left,y(v)); ctx.lineTo(w,y(v)); ctx.stroke();
+    }
+    for (const [key,color] of [["xt","#efb96e"],["x","#66ddcb"]]) {
+      ctx.strokeStyle = color; ctx.setLineDash(key === "x" ? [4,2] : []);
+      ctx.beginPath(); let gap = true;
+      for (const s of samples) {
+        if (s.x == null) { gap = true; continue; }
+        const x = w - 2 - (w-left-2)*(now-s.t)/60000;
+        if (gap) ctx.moveTo(x,y(s[key])); else ctx.lineTo(x,y(s[key]));
+        gap = false;
+      }
+      ctx.stroke();
+    }
+  }
+  new ResizeObserver(draw).observe(canvas);
+  function lamps(selector, bits) {
+    panel.querySelectorAll(selector).forEach((el,i) => {
+      const level = bits == null ? "—" : String((bits >> i) & 1);
+      el.dataset.level = level; el.querySelector("b").textContent = level;
+    });
+  }
+  function render(s) {
+    for (const key of ["x","xt","u","target"]) field(key,s?.[key] ?? "—");
+    lamps("[data-input]",s?.inputs); lamps("[data-output]",s?.outputs);
+    field("mode", s ? `Lazo ${s.hab&1?"cerrado":"abierto"} · Integral ${s.hab&2?"activa":"inactiva"} · Seguimiento ${s.tracking?"activo":"inactivo"}` : "Estado desconocido");
+    field("limits", s ? "Límites · "+([[1,"negativo activo"],[2,"positivo activo"],[4,"paro negativo"],[8,"paro positivo"]].filter(([mask])=>s.limits&mask).map(([,name])=>name).join(", ") || "libres") : "Límites · —");
+    field("home", s ? `${["Inactiva","Esperando flanco","Inicio capturado"][s.bi]} · ${s.home===4?"Índice Z":"ENT"+(s.home || 1)}${s.bi===2?" · POSINI "+s.posini:""} · Z ${s.z&1?"nivel "+((s.z>>1)&1):"deshabilitado"}${s.z&4?" · captura "+s.zpos:""}` : "Inicio · —");
+    field("bounds",s ? (s.has_bounds ? "Destinos permitidos en ESP32 · " : "Destinos permitidos solo en el maestro · ")+s.bounds.join(" a ")+" cuentas" : "Recorrido desconocido");
+    field("pattern",s ? "Modo · "+s.pattern : "Modo desconocido");
+    field("param_status", s ? (s.has_parameters ? "" : "Este firmware no admite lectura de parámetros.") : "Sin lectura del ESP32.");
+    panel.querySelectorAll("[data-active]").forEach(el => {
+      const value = s?.active?.[el.dataset.active];
+      let display = value;
+      // Mostrar el decimal más corto que reproduce la misma lectura float32.
+      if (Number.isFinite(value) && !Number.isInteger(value)) {
+        for (let digits = 1; digits <= 9; digits++) {
+          const candidate = Number(value.toPrecision(digits));
+          if (Math.fround(candidate) === value) { display = candidate; break; }
+        }
+      }
+      el.textContent = display ?? "—";
+      el.title = value == null ? "" : String(value);
+    });
+    panel.querySelectorAll("[data-sent]").forEach(el=>el.textContent=(el.dataset.sent === "VEL" ? s?.last_vel : s?.sent?.[el.dataset.sent]) ?? "—");
+    for (const name of ["MINPOS","MAXPOS"]) find('[data-action="'+name+'"] button').disabled = !s;
+    find("[data-export]").disabled = !s?.has_bounds || !s?.has_parameters;
+    const speed = find('[data-action="seguir_con_velocidad"] input');
+    if (s?.sent?.VELSEG != null) speed.placeholder = "Enviado: " + s.sent.VELSEG;
+    if (s?.startup_error) status.textContent += " · " + s.startup_error;
+    field("velocity", "VEL base enviada · "+(s?.sent?.VEL ?? "—")+" | Última VEL escrita · "+(s?.last_vel ?? "—")+" cuentas/muestra");
+    field("home_phase", [s?.home_phase,s?.notice].filter(Boolean).join(" · "));
+    find("[data-csv]").hidden = !s?.capture;
+    const mode = find("[data-home-mode]");
+    mode.disabled = !s || !!s.home_phase;
+    mode.options[2].disabled = !s?.protected_home;
+    if (s && !s.protected_home && mode.value === "protected") mode.value = "auto";
+    for (const start of panel.querySelectorAll('[data-action^="inicio"] button')) start.disabled = !s || !!s.home_phase;
+    const source = find('[data-action="inicio"] select');
+    for (const n of [2,3]) source.options[n].disabled = !s?.protected_home;
+    source.options[4].disabled = !(s?.z & 1);
+    if (source.selectedOptions[0].disabled) source.value = "0";
+    samples.push({t:performance.now(),x:s?.x,xt:s?.xt}); draw();
+  }
+  async function poll() {
+    try {
+      const res = await fetch(panel.dataset.url,{cache:"no-store"});
+      const s = await res.json(); if (!res.ok) throw Error(s.error);
+      online = true; status.textContent =  "Simulado · "+new Date().toLocaleTimeString();
+      render(s);
+    } catch (e) {
+      online = false; status.textContent = "Sin comunicación · "+e.message; render(null);
+    }
+    status.classList.toggle("online", online);
+    controls.disabled = !online || writing;
+  }
+  async function tick() {
+    await poll();
+    setTimeout(tick, Number(document.body.dataset.poll));
+  }
+  function post(cmd,value) {
+    return fetch(panel.dataset.url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd,value})});
+  }
+  async function send(cmd,value) {
+    if (writing || !online) return;
+    if (cmd==="restablecer" && !confirm("¿Abrir el lazo y poner a cero el encoder de "+find("h2").textContent+"?")) return;
+    writing = true; controls.disabled = true; feedback.textContent = "Enviando…";
+    try {
+      const res = await post(cmd,value);
+      const data = await res.json(); if (!res.ok) throw Error(data.error);
+      feedback.textContent = cmd+" · "+data.message;
+    } catch(e) { feedback.textContent = "Error · "+e.message; }
+    finally { writing = false; controls.disabled = !online; }
+  }
+  find("[data-export]").addEventListener("click", async () => {
+    const status = find("[data-export-status]");
+    try {
+      const fields = find('[data-action="inicio_auto"]').elements;
+      const read = name => {
+        if (fields[name].validity.badInput) throw Error("Revise el campo de búsqueda: " + name);
+        return fields[name].value === "" ? null : fields[name].valueAsNumber;
+      };
+      const search = {
+        modo: find("[data-home-mode]").value,
+        fuente_seleccionada: Number(find('[data-action="inicio"] select').value),
+        paso_cuentas: read("step"), recorrido_maximo_cuentas: read("travel"),
+        offset_cuentas: read("offset"), tolerancia_cuentas: read("tolerance"),
+        tiempo_maximo_s: read("timeout")
+      };
+      const response = await fetch(panel.dataset.url, {cache:"no-store"});
+      const state = await response.json();
+      if (!response.ok || state.active?.MINPOS == null || state.active?.MAXPOS == null)
+        throw Error(state.error || "No se obtuvo la lectura completa del ESP32.");
+      const date = new Date().toISOString();
+      const axis = panel.dataset.axis;
+      const record = {eje:axis, direccion_modbus:Number(panel.dataset.address), fecha_utc:date,
+                      origen:state.simulated ? "simulacion" : "ESP32", entonacion:state.active,
+                      busqueda_inicio:{formulario:search, ultima_automatica_iniciada:state.last_search ?? null}};
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([JSON.stringify(record,null,2)+"\n"], {type:"application/json"}));
+      link.download = "ServoESP32-"+axis+"-"+date.replace(/:/g,"-")+".json";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      status.textContent = "JSON generado para el eje " + axis + ".";
+    } catch (error) { status.textContent = error.message; }
+  });
+  panel.addEventListener("click",e=>{
+    const flip = e.target.closest("[data-flip-sign]");
+    if (flip) {
+      const input = flip.form.elements.namedItem("value");
+      if (Number.isFinite(input.valueAsNumber)) input.valueAsNumber = -input.valueAsNumber;
+      input.focus();
+      return;
+    }
+    const btn=e.target.closest("[data-cmd]");
+    if(btn) send(btn.dataset.cmd,btn.dataset.value ? Number(btn.dataset.value) : null);
+  });
+  panel.addEventListener("submit",e=>{
+    e.preventDefault(); const f=e.target;
+    const action=f.dataset.action;
+    if (action === "ensayo") send(e.submitter?.value || action,testValues(f));
+    else if (action === "inicio") send(action,{source:Number(f.elements.value.value),mode:find("[data-home-mode]").value});
+    else if (action === "relativo") send(f.elements.base.value,Number(f.elements.value.value));
+    else if (action === "inicio_auto" || action === "limites") {
+      const data=Object.fromEntries(new FormData(f));
+      if (action === "inicio_auto") {
+        if (!Number(data.travel) || Math.sign(Number(data.step)) !== Math.sign(Number(data.travel))) {
+          feedback.textContent = "Paso y recorrido deben ser distintos de cero y llevar el mismo signo.";
+          f.elements.travel.focus();
+          return;
+        }
+        if (e.submitter?.value === "inicio_offset" && data.offset === "") {
+          feedback.textContent = "Indique el offset desde la marca en cuentas.";
+          f.elements.offset.focus();
+          return;
+        }
+      }
+      for (const key of Object.keys(data)) if(key !== "mode") data[key]=Number(data[key]);
+      if (action === "inicio_auto") {
+        data.source = Number(find('[data-action="inicio"] select').value);
+        data.mode = find("[data-home-mode]").value;
+      }
+      send(action === "inicio_auto" ? (e.submitter?.value || "inicio_marca") : action,data);
+    } else send(action,Number(f.elements.value.value));
+  });
+  tick();
+}
+</script></body></html>

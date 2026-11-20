@@ -1,5 +1,7 @@
 # Configurar el sensor de inicio y uno o dos fines de carrera
 
+Para programar el recorrido, la tolerancia y el cero final desde una aplicación, consulta [Implementar la búsqueda de inicio en un maestro](SECUENCIA_DE_INICIO.md).
+
 Estas funciones **ya están implementadas**. Se configuran en `config.py`, se copia ese archivo al ESP32 y se reinicia. No hace falta modificar el PID ni añadir módulos. Los límites se asignan al arrancar; no hay un comando para cambiar sus roles o polaridades en caliente. La entrada de inicio sí se puede elegir con cada orden.
 
 ## 1. Identificar las entradas

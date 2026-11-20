@@ -98,6 +98,11 @@ class ModbusApp:
             obj = {'CMD': 'CAMBIA', floats[fn]: regs_to_float(a, b)}
         elif fn in (1, 50):
             obj = {'CMD': 'MUEVE' if fn == 1 else 'DAX', 'PAR': regs_to_int(a, b)}
+        elif fn in (51, 52):
+            low, high = self.commands.eje.destinations
+            value = regs_to_int(a, b)
+            obj = {'CMD': 'DESTINOS', 'MINPOS': value if fn == 52 else low,
+                   'MAXPOS': value if fn == 51 else high}
         elif fn in (53, 54):
             obj = {'CMD': 'CAMBIA', 'ZONA' if fn == 53 else 'ERRORPARAR': abs(regs_to_int(a, b))}
         elif fn == 57:

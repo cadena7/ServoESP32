@@ -413,6 +413,13 @@ class ModbusTests(unittest.TestCase):
         response = self.exchange(self.frame(struct.pack('>BHH',3,37,1)))
         self.assertEqual(response, self.frame(struct.pack('>BBH',3,2,4)))
 
+    def test_legacy_destination_commands(self):
+        self.app.dispatch(51, *int_to_regs(234567))
+        self.app.dispatch(52, *int_to_regs(-123456))
+        with self.assertRaises(ValueError):
+            self.app.dispatch(51, *int_to_regs(-123456))
+        self.assertEqual(self.app.commands.eje.destinations, (-123456, 234567))
+
     def test_all_function_dispatches(self):
         for fn in (2,3,9,10,30,31,32): self.app.dispatch(fn,0,0)
         for fn in (4,5,6,7,8,20,21,22,23,24):

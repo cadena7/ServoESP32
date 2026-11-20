@@ -4,6 +4,8 @@
 
 Para configurar inicio y uno o dos fines de carrera, comienza con [INICIO_Y_LIMITES.md](INICIO_Y_LIMITES.md): incluye recetas completas y la numeración física unificada de las entradas.
 
+Para interpretar KP, KI, KD, el PWM y la trayectoria durante el ajuste, consulta la [guía de entonación PID](ENTONACION_PID.md).
+
 ## Campos principales
 
 | Campo | Valor inicial | Qué modifica |
@@ -20,6 +22,7 @@ Para configurar inicio y uno o dos fines de carrera, comienza con [INICIO_Y_LIMI
 | `TRAJECTORY_SPEED` | 4.5 | Velocidad máxima, cuentas/muestra |
 | `TRAJECTORY_ACCEL` | 0.05 | Aceleración, cuentas/muestra²; debe ser positiva |
 | `TRAJECTORY_TOLERANCE` | 10 | Distancia final dentro de la cual se ajusta al objetivo |
+| `MINPOS`, `MAXPOS` | −2147483648 / 2147483647 | Destinos absolutos en cuentas. Ambos son int32 y MINPOS debe ser menor que MAXPOS. |
 | `TRACKING_SPEED` | 0 | Incremento de referencia por muestra en modo seguimiento |
 | `GAIN_RANGE`, `GAIN_MAGNITUDE` | 500 / 1 | Ganancia adicional cerca de cero; rango 0 deshabilita |
 | `MODBUS_ENABLED` | True | Habilita servidor RTU |

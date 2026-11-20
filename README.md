@@ -81,7 +81,9 @@ Ejemplos JSON por USB/UART0, un objeto por línea:
 ## Documentación
 
 - [Instalación, placa Steren y cableado](auxiliares/docs/INSTALACION.md)
+- [Implementar la secuencia de inicio en un maestro](auxiliares/docs/SECUENCIA_DE_INICIO.md)
 - [Inicio y uno o dos fines de carrera: ejemplos completos](auxiliares/docs/INICIO_Y_LIMITES.md)
+- [Cómo entonar el PID y evaluar un ensayo de escalón](auxiliares/docs/ENTONACION_PID.md)
 - [Configuración y puntos de edición](auxiliares/docs/CONFIGURACION.md)
 - [Límites de recorrido y retirada con lazo cerrado](auxiliares/docs/LIMITES.md)
 - [Protocolo Modbus, JSON y HTTP](auxiliares/docs/PROTOCOLO.md)

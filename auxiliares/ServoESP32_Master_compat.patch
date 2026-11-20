@@ -1,0 +1,318 @@
+--- a/README.md
++++ b/README.md
+@@ -53,7 +53,7 @@
+ | Tiempo de escalón, amplitud X/Y, factor seno | Editables por eje. Aplicar cambios durante el ensayo desde su columna. |
+ | Switch de inicio, lectura y borrado de salidas | Selector de inicio, ENT1–3, índice Z, SAL1–3 y comandos por eje. |
+ 
+-El seno requiere haber enviado VEL y ACEL desde este maestro. Se comprueban las exigencias de velocidad y aceleración según SERVO_PERIOD_MS y se aplica el factor a la velocidad calculada. Finalizar el ensayo restaura la VEL enviada antes de iniciarlo. El servidor genera las referencias aunque se cierre la pestaña. El sondeo y las escrituras comparten el puerto serie. La carga y velocidad del bus limitan el muestreo efectivo. El modo normal conserva el último destino. Las constantes de recorrido y offset de la rutina de búsqueda específica del montaje público no se cargan en los ejes del banco. La captura manual y la búsqueda automática requieren la función protegida 58.
++El seno requiere haber enviado VEL y ACEL desde este maestro. Se comprueban las exigencias de velocidad y aceleración según SERVO_PERIOD_MS y se aplica el factor a la velocidad calculada. Finalizar el ensayo restaura la VEL enviada antes de iniciarlo. El servidor genera las referencias aunque se cierre la pestaña. El sondeo y las escrituras comparten el puerto serie. La carga y velocidad del bus limitan el muestreo efectivo. El modo normal conserva el último destino. Las constantes de recorrido y offset de la rutina de búsqueda específica del montaje público no se cargan en los ejes del banco. El selector por eje aplica a la captura manual y a las búsquedas automáticas. Automático usa 31 en OG (ENT1) y 58 en firmware con paro local. Legacy permite usar 31 también en el firmware nuevo.
+ 
+ Para la Pi de producción, el comando original usa /dev/ttyS0 a 9600, X=22 e Y=23. Los candidatos para Pi, Mac y adaptadores USB están comentados en settings.py. El puerto debe corresponder al transceptor del bus Modbus. El USB de programación de la placa puede corresponder a la consola JSON.
+ 
+@@ -61,7 +61,7 @@
+ 
+ Editar `ajustes_ejes.py`. En el diccionario de cada eje escribir únicamente los valores que se desean cargar. Por ejemplo, en X se puede definir `"KP": 0.25, "KI": 0, "VELSEG": -0.5` y dejar el resto en `None`. Para ejes con nombres personalizados, usar exactamente los nombres de settings.AXES.
+ 
+-MINPOS y MAXPOS se envían juntos y se verifican por lectura. En el arranque del maestro un extremo sin valor en ajustes_ejes.py ni en POSITION_LIMITS conserva el que informa la placa. Si ambos están sin configurar, solo se consultan. UMIN siempre es −UMAX. Cada fila MINPOS/MAXPOS permite cambiar ese extremo conservando el otro leído del ESP32. El botón de exportación descarga un JSON del eje con la entonación vigente y, por separado, el formulario de búsqueda y la última búsqueda automática iniciada durante la sesión del servicio. Los campos vacíos se exportan como null. Fuente 0 indica la predeterminada del firmware. El panel distingue lo enviado de los valores leídos en cada refresco.
++En OG el panel aplica MINPOS y MAXPOS localmente. En el firmware nuevo se envían juntos y se verifican por lectura. En el arranque del maestro un extremo sin valor en ajustes_ejes.py ni en POSITION_LIMITS conserva el que informa la placa. Si ambos están sin configurar, solo se consultan. UMIN siempre es −UMAX. Cada fila MINPOS/MAXPOS permite cambiar ese extremo conservando el otro leído del ESP32. El botón de exportación descarga un JSON del eje con la entonación vigente y, por separado, el formulario de búsqueda y la última búsqueda automática iniciada durante la sesión del servicio. Los campos vacíos se exportan como null. Fuente 0 indica la predeterminada del firmware. El panel distingue lo enviado de los valores leídos en cada refresco.
+ 
+ Al iniciar un proceso nuevo con ./run.sh, el maestro valida todos los valores de los ejes habilitados antes de la primera escritura. Se omiten los ejes deshabilitados y las claves ausentes o con None. Cero es un valor explícito. El maestro envía únicamente parámetros de entonación. Cada escritura RTU confirmada aparece en «Enviado». Ante un fallo de comunicación corta la carga de ese eje, informa del parámetro en la terminal y continúa con los demás. Los cambios anteriores al fallo pueden haber llegado al micro. Los refrescos del navegador y un segundo run.sh con el servicio activo no repiten la carga.
+ 
+@@ -71,8 +71,8 @@
+ 
+ El inicio conjunto usa los parámetros de cada columna seleccionada y un reloj común para los senos. Las escrituras RTU se transmiten en serie. La fase se expresa en grados. El factor se aplica solo con el ajuste automático de VEL. La columna distingue la última VEL escrita por el maestro de la base usada para restauración. El CSV del último escalón conserva hasta 7200 muestras por eje en memoria.
+ 
+-El firmware del proyecto incorpora BUSCAINICIO_PARO. Actualizar juntos control.py, hardware.py, commands.py y modbus_app.py y reiniciar el ESP32. Los botones de inicio se habilitan cuando el registro 30 anuncia esta capacidad. Al armar, el maestro abre el lazo y verifica PWM cero. La captura manual espera detenida hasta que se ordena un desplazamiento explícito. El maestro cancela la espera manual tras 60 s. La búsqueda automática avanza por pasos con signo, limitados por el recorrido total y MINPOS/MAXPOS. Introducir el paso y recorrido para el montaje antes de iniciarla.
++El firmware del proyecto incorpora BUSCAINICIO_PARO. Actualizar juntos control.py, hardware.py, commands.py y modbus_app.py y reiniciar el ESP32. El modo Mejorado se habilita cuando el registro 30 anuncia esta capacidad. Al armar, el maestro abre el lazo y verifica PWM cero. La captura manual espera detenida hasta que se ordena un desplazamiento explícito. El maestro cancela la espera manual tras 60 s. La búsqueda automática avanza por pasos con signo, limitados por el recorrido total y MINPOS/MAXPOS. Introducir el paso y recorrido para el montaje antes de iniciarla.
+ 
+-Al detectar la transición, el micro corta el PWM, abre el lazo y bloquea nuevos mandos de potencia. ENT1–ENT3 se muestrean en el ciclo de control y Z usa el flanco configurado del encoder. Flask vuelve a ordenar ABRE y comprueba HAB, U y dos lecturas consecutivas de posición iguales. La captura manual conserva POSINI hasta cancelar. En automático, el maestro aplica el offset respecto de POSINI y pone el encoder a cero después de verificar la posición detenida dentro de tolerancia. Después de verificar el cero, cierra el lazo, manda destino 0 y comprueba HAB, XT y X antes de indicar «Eje listo». Un límite activo, tiempo agotado, falta de marca o pérdida de comunicación interrumpe la secuencia. Un fallo de comunicación puede impedir confirmar el paro. PWM cero permite desplazamiento por inercia. La distancia de parada y la duración mínima detectable de los pulsos ENT deben comprobarse en el montaje.
++En Legacy el eje captura POSINI y Flask abre el lazo al recibir BI=2. El tiempo hasta el paro depende del sondeo y la comunicación. En Mejorado, al detectar la transición, el micro corta el PWM, abre el lazo y bloquea nuevos mandos de potencia. ENT1–ENT3 se muestrean en el ciclo de control y Z usa el flanco configurado del encoder. Flask vuelve a ordenar ABRE y comprueba HAB, U y dos lecturas consecutivas de posición iguales. La captura manual conserva POSINI hasta cancelar. En automático, el maestro aplica el offset respecto de POSINI y pone el encoder a cero después de verificar la posición detenida dentro de tolerancia. Después de verificar el cero, cierra el lazo, manda destino 0 y comprueba HAB, XT y X antes de indicar «Eje listo». Un límite activo, tiempo agotado, falta de marca o pérdida de comunicación interrumpe la secuencia. Un fallo de comunicación puede impedir confirmar el paro. PWM cero permite desplazamiento por inercia. La distancia de parada y la duración mínima detectable de los pulsos ENT deben comprobarse en el montaje.
+ 
+ **Buscar inicio en la marca** usa la cuenta capturada en el flanco. Si el eje se pasó por inercia, regresa a esa cuenta. **Buscar inicio con offset** usa la misma captura y su destino final es marca + offset del formulario. HOME_OFFSETS precarga el campo por eje. Puede editarse para cada prueba. El paso y el recorrido máximo deben compartir signo. Desde X=500, un recorrido de −1000 permite buscar hasta X=−500. El cero inicial mencionado en el armado es PWM cero. El encoder se pone a cero únicamente al verificar el destino final. La captura manual sirve para diagnóstico: se arma y después se manda un destino absoluto o relativo desde Movimiento. Conserva la cuenta al parar, con el lazo abierto.
+--- a/bench.py
++++ b/bench.py
+@@ -316,7 +316,7 @@
+         if cmd in ("inicio", "inicio_auto"):
+             result = HomeSearch.start(self, axis, v, manual=cmd=="inicio")
+             if cmd == "inicio_auto":
+-                self.last_search[axis] = dict(fuente_seleccionada=v["source"], paso_cuentas=v["step"],
++                self.last_search[axis] = dict(modo="protected" if self.homes[axis].protected else "legacy", fuente_seleccionada=v["source"], paso_cuentas=v["step"],
+                                               recorrido_maximo_cuentas=v["travel"], offset_cuentas=v["offset"],
+                                               tolerancia_cuentas=v["tolerance"], tiempo_maximo_s=v.get("timeout", 60))
+             return result
+@@ -335,13 +335,14 @@
+             self.end_test(axis)
+         elif cmd in ("MINPOS", "MAXPOS"):
+             state = self.state(axis, parameters=True)
+-            if not state.get("has_bounds"):
+-                raise ValueError("El firmware no admite destinos en RAM.")
+-            low, high = state["device_bounds"]
++            low, high = state.get("device_bounds", self.bounds[axis])
+             pair = self.validate_bounds(v if cmd == "MINPOS" else low, v if cmd == "MAXPOS" else high)
+             self.end_test(axis)
+-            self.set_bounds(axis, *pair)
+-            return {"message": "Recorrido verificado en el ESP32."}
++            if state.get("has_bounds"):
++                self.set_bounds(axis, *pair)
++                return {"message": "Recorrido verificado en el ESP32."}
++            self.bounds[axis] = pair
++            return {"message": "Recorrido aplicado en Flask."}
+         elif cmd == "limites":
+             if not isinstance(v, dict):
+                 raise ValueError("Indique MINPOS y MAXPOS.")
+@@ -369,8 +370,8 @@
+                     cmd = "mover"
+                 if home and home.manual and cmd == "mover":
+                     number(v, *self.bounds[axis], integer=True)
+-                    state = self.state(axis)
+-                    if state["bi"] != 1 or not state["home_armed_stop"] or state["limits"] & 15:
++                    state = home.read_state(self, axis)
++                    if state["bi"] != 1 or not home.armed(state) or state["limits"] & 15:
+                         raise ValueError("Armado o límites impiden el movimiento.")
+                     if not state["hab"] & 1:
+                         self.write(axis, "cerrar")
+--- a/homing.py
++++ b/homing.py
+@@ -1,4 +1,4 @@
+-"""Secuencia de inicio supervisada. El corte al flanco ocurre en el ESP32."""
++"""Secuencia de inicio supervisada. La captura puede usar paro local o supervisión del maestro."""
+ import time
+ from master import number
+ 
+@@ -24,13 +24,20 @@
+ 
+     @classmethod
+     def start(cls, bench, axis, values, manual):
+-        if manual:
++        if manual and not isinstance(values, dict):
+             values = {"source": values}
+         if not isinstance(values, dict):
+             raise ValueError("Faltan los parámetros de búsqueda.")
+         home = cls(manual, values)
+         state = bench.state(axis)
+-        if not state["protected_home"]:
++        mode = values.get("mode", "protected")
++        if mode not in ("auto", "legacy", "protected"):
++            raise ValueError("Modo de inicio desconocido.")
++        home.protected = state["protected_home"] if mode == "auto" else mode == "protected"
++        home.og = not state["protected_home"]
++        if home.og and home.source not in (0, 1):
++            raise ValueError("El OG usa ENT1 para buscar inicio.")
++        if home.protected and home.og:
+             raise ValueError("Se requiere firmware con paro local al flanco (función 58).")
+         if state["limits"] & 15 or state["bi"] == 1:
+             raise ValueError("Compruebe límites y cancele la búsqueda anterior.")
+@@ -42,7 +49,7 @@
+             bench.end_test(axis)
+             bench.write(axis, "dejar_seguir")
+             bench.write(axis, "cancelar")
+-            state = bench.state(axis)
++            state = home.read_state(bench, axis)
+             home.check_stopped(state)
+             home.origin = state["x"]
+             if not manual:
+@@ -50,16 +57,25 @@
+                 home.end = home.origin + home.travel
+                 for position in (home.origin, home.end):
+                     number(position, *bench.bounds[axis], integer=True)
+-            bench.write(axis, "inicio", home.source)
+-            state = bench.state(axis)
+-            if not state["home_armed_stop"] or state["bi"] not in (1, 2) or (home.source and state["home"] != home.source):
+-                raise ValueError("El controlador no confirmó el armado protegido.")
++            bench.write(axis, "inicio" if home.protected else "inicio_legacy", 0 if home.og else home.source)
++            state = home.read_state(bench, axis)
++            if not home.armed(state) or (not home.og and home.source and state["home"] != home.source):
++                raise ValueError("El controlador no confirmó el armado de la captura.")
+             bench.notes.pop(axis, None)
+             bench.ensure_worker()
+         except Exception:
+             bench.abort_home(axis)
+             raise
+-        return {"message": "Captura protegida armada."}
++        return {"message": "Captura armada con paro local." if home.protected else "Captura Legacy armada."}
++
++    def armed(self, state):
++        return state["bi"] in (1, 2) and bool(state["home_armed_stop"]) == self.protected
++
++    def read_state(self, bench, axis):
++        # OG publica el estado después de responder a una petición RTU.
++        if self.og:
++            bench.state(axis)
++        return bench.state(axis)
+ 
+     @staticmethod
+     def check_stopped(state):
+@@ -69,7 +85,7 @@
+     def advance(self, bench, axis):
+         if time.monotonic() >= self.deadline:
+             raise ValueError("Tiempo de búsqueda agotado.")
+-        s = bench.state(axis)
++        s = self.read_state(bench, axis)
+         if s["limits"] & 15 or s["tracking"]:
+             raise ValueError("Búsqueda interrumpida por límite o seguimiento.")
+         if self.phase == "Confirmando cero con lazo cerrado":
+@@ -80,8 +96,8 @@
+                 bench.notes[axis] = f"Eje listo · marca {self.mark}, offset {self.offset}, referencia 0 y lazo cerrado."
+             return
+         if self.phase == "Esperando marca":
+-            if not s["home_armed_stop"] or s["bi"] not in (1, 2):
+-                raise ValueError("Se perdió el armado protegido.")
++            if not self.armed(s):
++                raise ValueError("Se perdió el armado de la captura.")
+             if s["bi"] == 2:
+                 bench.write(axis, "abrir")
+                 self.mark = s["posini"]
+@@ -96,7 +112,7 @@
+                     return
+                 bench.write(axis, "abrir")
+                 if self.target == self.end:
+-                    if bench.state(axis)["bi"] == 2:
++                    if self.read_state(bench, axis)["bi"] == 2:
+                         return
+                     raise ValueError("Recorrido agotado sin detectar marca.")
+             last = self.origin if self.target is None else self.target
+@@ -117,7 +133,7 @@
+             self.previous_x = s["x"]
+             return
+         if self.phase == "Verificando paro en la marca":
+-            if s["bi"] != 2 or s["posini"] != self.mark or not s["home_armed_stop"]:
++            if s["bi"] != 2 or s["posini"] != self.mark or not self.armed(s):
+                 raise ValueError("Captura inválida.")
+             if self.manual:
+                 bench.homes.pop(axis)
+@@ -126,7 +142,7 @@
+             self.target = self.mark + self.offset
+             number(self.target, *bench.bounds[axis], integer=True)
+             bench.write(axis, "cancelar")
+-            s = bench.state(axis)
++            s = self.read_state(bench, axis)
+             self.check_stopped(s)
+             if s["bi"] or s["home_armed_stop"] or s["limits"] & 15:
+                 raise ValueError("El controlador no confirmó la liberación de la marca.")
+@@ -138,12 +154,12 @@
+         if abs(s["x"]-self.target) > self.tolerance:
+             raise ValueError("El eje salió de tolerancia después del paro.")
+         bench.write(axis, "restablecer")
+-        final = bench.state(axis)
++        final = self.read_state(bench, axis)
+         self.check_stopped(final)
+-        if final["x"] or final["xt"] or final["bi"] or final["limits"] & 15 or final["home_armed_stop"]:
++        if final["x"] or (not self.og and final["xt"]) or final["bi"] or final["limits"] & 15 or final["home_armed_stop"]:
+             raise ValueError("No se confirmó el cero del encoder.")
+         bench.write(axis, "cerrar")
+-        closed = bench.state(axis)
++        closed = self.read_state(bench, axis)
+         if not closed["hab"] & 1 or closed["limits"] & 15 or closed["tracking"] or closed["bi"]:
+             raise ValueError("No se confirmó el cierre de lazo después de definir el cero.")
+         bench.write(axis, "mover", 0)
+--- a/master.py
++++ b/master.py
+@@ -41,8 +41,8 @@
+ def encode(cmd, value):
+     if cmd in SIMPLE:
+         return [SIMPLE[cmd], 0, 0]
+-    if cmd == "inicio":
+-        return [58, number(value, 0, 4, True), 0]
++    if cmd in ("inicio", "inicio_legacy"):
++        return [31 if cmd == "inicio_legacy" else 58, number(value, 0, 4, True), 0]
+     if cmd in ("encender", "apagar"):
+         return [57, 2 if cmd == "encender" else 1, 1 << (number(value, 1, 3, True) - 1)]
+     if cmd == "mover":
+--- a/settings.py
++++ b/settings.py
+@@ -8,8 +8,8 @@
+ # Ajustes de arranque (PID, velocidades, etc.): editar ajustes_ejes.py.
+ # Una fila por eje habilitado. La dirección debe coincidir con MODBUS_ADDRESS.
+ AXES = {
+-    "X": 23,
+-    # "Y": 24,
++    "X": 22,
++    "Y": 23,
+     # "Z": 25,
+     # "W": 26,
+ }
+--- a/static/panel.js
++++ b/static/panel.js
+@@ -94,7 +94,7 @@
+     lamps("[data-input]",s?.inputs); lamps("[data-output]",s?.outputs);
+     field("mode", s ? `Lazo ${s.hab&1?"cerrado":"abierto"} · Integral ${s.hab&2?"activa":"inactiva"} · Seguimiento ${s.tracking?"activo":"inactivo"}` : "Estado desconocido");
+     field("limits", s ? "Límites · "+([[1,"negativo activo"],[2,"positivo activo"],[4,"paro negativo"],[8,"paro positivo"]].filter(([mask])=>s.limits&mask).map(([,name])=>name).join(", ") || "libres") : "Límites · —");
+-    field("home", s ? `${["Inactiva","Esperando flanco","Inicio capturado"][s.bi]} · ${s.home===4?"Índice Z":"ENT"+s.home}${s.bi===2?" · POSINI "+s.posini:""} · Z ${s.z&1?"nivel "+((s.z>>1)&1):"deshabilitado"}${s.z&4?" · captura "+s.zpos:""}` : "Inicio · —");
++    field("home", s ? `${["Inactiva","Esperando flanco","Inicio capturado"][s.bi]} · ${s.home===4?"Índice Z":"ENT"+(s.home || 1)}${s.bi===2?" · POSINI "+s.posini:""} · Z ${s.z&1?"nivel "+((s.z>>1)&1):"deshabilitado"}${s.z&4?" · captura "+s.zpos:""}` : "Inicio · —");
+     field("bounds",s ? (s.has_bounds ? "Destinos permitidos en ESP32 · " : "Destinos permitidos solo en el maestro · ")+s.bounds.join(" a ")+" cuentas" : "Recorrido desconocido");
+     field("pattern",s ? "Modo · "+s.pattern : "Modo desconocido");
+     field("param_status", s ? (s.has_parameters ? "" : "Este firmware no admite lectura de parámetros.") : "Sin lectura del ESP32.");
+@@ -112,18 +112,23 @@
+       el.title = value == null ? "" : String(value);
+     });
+     panel.querySelectorAll("[data-sent]").forEach(el=>el.textContent=(el.dataset.sent === "VEL" ? s?.last_vel : s?.sent?.[el.dataset.sent]) ?? "—");
+-    for (const name of ["MINPOS","MAXPOS"]) find('[data-action="'+name+'"] button').disabled = !s?.has_bounds;
++    for (const name of ["MINPOS","MAXPOS"]) find('[data-action="'+name+'"] button').disabled = !s;
+     find("[data-export]").disabled = !s?.has_bounds || !s?.has_parameters;
+     const speed = find('[data-action="seguir_con_velocidad"] input');
+     if (s?.sent?.VELSEG != null) speed.placeholder = "Enviado: " + s.sent.VELSEG;
+     if (s?.startup_error) status.textContent += " · " + s.startup_error;
+     field("velocity", "VEL base enviada · "+(s?.sent?.VEL ?? "—")+" | Última VEL escrita · "+(s?.last_vel ?? "—")+" cuentas/muestra");
+-    field("home_phase", [s?.home_phase,s?.notice,s && !s.protected_home ? "Búsqueda requiere firmware con paro local." : ""].filter(Boolean).join(" · "));
++    field("home_phase", [s?.home_phase,s?.notice].filter(Boolean).join(" · "));
+     find("[data-csv]").hidden = !s?.capture;
+-    for (const start of panel.querySelectorAll('[data-action^="inicio"] button')) start.disabled = !s?.protected_home || !!s.home_phase;
++    const mode = find("[data-home-mode]");
++    mode.disabled = !s || !!s.home_phase;
++    mode.options[2].disabled = !s?.protected_home;
++    if (s && !s.protected_home && mode.value === "protected") mode.value = "auto";
++    for (const start of panel.querySelectorAll('[data-action^="inicio"] button')) start.disabled = !s || !!s.home_phase;
+     const source = find('[data-action="inicio"] select');
++    for (const n of [2,3]) source.options[n].disabled = !s?.protected_home;
+     source.options[4].disabled = !(s?.z & 1);
+-    if (source.value === "4" && source.options[4].disabled) source.value = "0";
++    if (source.selectedOptions[0].disabled) source.value = "0";
+     samples.push({t:performance.now(),x:s?.x,xt:s?.xt}); draw();
+   }
+   async function poll() {
+@@ -165,6 +170,7 @@
+         return fields[name].value === "" ? null : fields[name].valueAsNumber;
+       };
+       const search = {
++        modo: find("[data-home-mode]").value,
+         fuente_seleccionada: Number(find('[data-action="inicio"] select').value),
+         paso_cuentas: read("step"), recorrido_maximo_cuentas: read("travel"),
+         offset_cuentas: read("offset"), tolerancia_cuentas: read("tolerance"),
+@@ -204,6 +210,7 @@
+     e.preventDefault(); const f=e.target;
+     const action=f.dataset.action;
+     if (action === "ensayo") send(e.submitter?.value || action,testValues(f));
++    else if (action === "inicio") send(action,{source:Number(f.elements.value.value),mode:find("[data-home-mode]").value});
+     else if (action === "relativo") send(f.elements.base.value,Number(f.elements.value.value));
+     else if (action === "inicio_auto" || action === "limites") {
+       const data=Object.fromEntries(new FormData(f));
+@@ -220,7 +227,10 @@
+         }
+       }
+       for (const key of Object.keys(data)) if(key !== "mode") data[key]=Number(data[key]);
+-      if (action === "inicio_auto") data.source = Number(find('[data-action="inicio"] select').value);
++      if (action === "inicio_auto") {
++        data.source = Number(find('[data-action="inicio"] select').value);
++        data.mode = find("[data-home-mode]").value;
++      }
+       send(action === "inicio_auto" ? (e.submitter?.value || "inicio_marca") : action,data);
+     } else send(action,Number(f.elements.value.value));
+   });
+--- a/templates/panel.html
++++ b/templates/panel.html
+@@ -46,9 +46,14 @@
+ </tbody></table><button type="button" data-export>Exportar parámetros de {{ axis }} (.json)</button> <span data-export-status role="status"></span></section>
+ <section><h3>Búsqueda de inicio</h3>
+ <p data-field="home">—</p><p data-field="home_phase">—</p>
++<label>Modo de búsqueda<select data-home-mode>
++<option value="auto">Automático según firmware</option>
++<option value="legacy">Legacy (OG) · paro desde Flask</option>
++<option value="protected">Mejorado · paro en el ESP32</option>
++</select></label>
+ <form data-action="inicio"><label>Fuente<select name="value">
+ <option value="0">Predeterminada</option>{% for n in range(1,4) %}<option value="{{ n }}">ENT{{ n }}</option>{% endfor %}<option value="4">Índice Z</option>
+-</select></label><button>Armar solo captura manual</button></form><p>Para capturar manualmente, arma el sensor y usa Mover o Mover relativo. Al detectar la marca se corta el PWM y se conserva la cuenta del encoder.</p>
++</select></label><button>Armar solo captura manual</button></form><p>Para capturar manualmente, arma el sensor y usa Mover o Mover relativo. En Legacy, Flask ordena el paro al leer la marca. En Mejorado, el ESP32 corta el PWM al capturarla.</p>
+ <form data-action="inicio_auto">
+ <label>Paso con signo · cuentas<input name="step" type="number" step="1" required></label>
+ <label>Recorrido máximo con signo · cuentas<input name="travel" type="number" step="1" required></label>

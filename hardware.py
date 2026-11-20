@@ -29,7 +29,7 @@ class Hardware:
             self.encoder = Encoder(0, phase_a=Pin(c.ENCODER_A, Pin.IN),
                                    phase_b=Pin(c.ENCODER_B, Pin.IN),
                                    phases=c.ENCODER_PHASES, filter_ns=c.ENCODER_FILTER_NS)
-            from commands import number
+            from commands import Commands, number
             home_input = number(c.HOME_INPUT_INDEX, 1, 4, True)
             number(c.ENCODER_INDEX_ACTIVE_LEVEL, 0, 1, True)
             self.eje = Eje(self.inputs[0], self.limits)
@@ -43,12 +43,16 @@ class Hardware:
             e.fn_lee_sensor = self.encoder.value
             e.fn_limpia_encoder = self.clear_encoder
             e.fn_actuador = self.drive
-            from commands import Commands, number
             e.abre_lazo()
             number(c.CONTROL_PERIOD_MS, 1, 1000, True)
             number(c.PWM_FREQ, 1, 40000000, True)
             number(c.MODBUS_ADDRESS, 1, 247, True)
-            Commands(e, self).execute({
+            commands = Commands(e, self)
+            # Configuraciones anteriores conservan el recorrido original.
+            low, high = e.destinations
+            commands.execute({'CMD': 'DESTINOS', 'MINPOS': getattr(c, 'MINPOS', low),
+                              'MAXPOS': getattr(c, 'MAXPOS', high)})
+            commands.execute({
                 'CMD': 'CAMBIA', 'KP': c.PID_KP, 'KI': c.PID_KI, 'KD': c.PID_KD,
                 'IL': c.PID_IL, 'UMAX': c.PID_UMAX, 'EMAX': c.PID_ERROR_MAX,
                 'ERRORPARAR': c.MAX_FOLLOWING_ERROR, 'ZONA': c.DEAD_ZONE,

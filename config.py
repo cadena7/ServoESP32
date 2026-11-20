@@ -47,7 +47,7 @@ LIMIT_ACTIVE_LEVELS = (1, 1, 1)
 # Para retirarse: nueva orden MUEVE hacia el otro lado, sin ABRE/CIERRA.
 # Soltar el switch no reanuda el destino cancelado. Estado: Modbus 32 / LIMITS.
 MODBUS_ENABLED = True
-MODBUS_ADDRESS = 23
+MODBUS_ADDRESS = 23  # Aquí va la dirección Modbus del eje. Editar en cada microcontrolador.
 MODBUS_UART = 1
 MODBUS_TX = 32
 MODBUS_RX = 35
@@ -60,18 +60,21 @@ WIFI_SSID = ''
 WIFI_PASSWORD = ''  # Preferible definir ambas en secrets.py (excluido de Git).
 WIFI_TIMEOUT_MS = 15000  # Solo limita el intento web; el control ya esta iniciado.
 MAX_REQUEST_BYTES = 2048
-AUTO_CLOSE_LOOP = False
-PID_KP = 0.1
-PID_KI = 0.001
-PID_KD = 0.023
-PID_IL = 1000.0
-PID_UMAX = 50000
-PID_ERROR_MAX = 4000
-MAX_FOLLOWING_ERROR = 1000  # 0 deshabilita la parada por error.
-DEAD_ZONE = 2
-TRAJECTORY_SPEED = 4.5     # cuentas/muestra
-TRAJECTORY_ACCEL = 0.05    # cuentas/muestra²
-TRAJECTORY_TOLERANCE = 10
-GAIN_RANGE = 500
-GAIN_MAGNITUDE = 1.0
-TRACKING_SPEED = 0.0
+# Valores de arranque por eje. Los comentarios indican el nombre en Flask.
+AUTO_CLOSE_LOOP = False         # Flask: HAB (el bit 0 indica lazo cerrado); aquí se elige el estado de arranque.
+PID_KP = 0.1                    # Flask: KP
+PID_KI = 0.001                  # Flask: KI
+PID_KD = 0.023                  # Flask: KD
+PID_IL = 1000.0                 # Flask: IL
+PID_UMAX = 50000                # Flask: UMAX (UMIN = −UMAX)
+PID_ERROR_MAX = 4000            # Flask: EMAX (saturación del error PID)
+MAX_FOLLOWING_ERROR = 1000      # Flask: ERRORMAX (clave ERRORPARAR); 0 deshabilita el paro por error.
+DEAD_ZONE = 2                   # Flask: Zona muerta (clave ZONA)
+TRAJECTORY_SPEED = 4.5          # Flask: VEL, cuentas/muestra
+TRAJECTORY_ACCEL = 0.05         # Flask: ACEL, cuentas/muestra²
+TRAJECTORY_TOLERANCE = 10       # Flask: EMIN, tolerancia interna de trayectoria
+GAIN_RANGE = 500                # Flask: RANGO
+GAIN_MAGNITUDE = 1.0            # Flask: MAGNITUD
+TRACKING_SPEED = 0.0            # Flask: VELSEG
+MINPOS = -2147483648            # Flask: MINPOS, destino absoluto mínimo en cuentas
+MAXPOS = 2147483647             # Flask: MAXPOS, destino absoluto máximo en cuentas

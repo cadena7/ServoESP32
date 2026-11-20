@@ -42,6 +42,7 @@ En 30, bit 0 indica seguimiento de velocidad. Bits 8, 9 y 10 son ENT1, ENT2 y EN
 | 31 | Preparar deteccion de inicio | Reg. 11: 0=config, 1=ENT1, 2=ENT2, 3=ENT3, 4=Z habilitado; reg. 12 ignorado |
 | 32 | Cancelar deteccion de inicio | Ignorado |
 | 50 | Mando manual, abre lazo antes de aplicar | int32, −65535 a 65535; se limita además por UMAX |
+| 51 / 52 | MAXPOS / MINPOS por separado (compatibilidad Node-RED) | int32 con signo. Conserva el otro extremo y aplica las validaciones de DESTINOS. Verificar por lectura de 40–43. |
 | 53 | Zona muerta | Valor absoluto de int32 |
 | 54 | Error máximo de seguimiento para parar | Valor absoluto de int32; 0 deshabilita |
 | 57 | Poner/borrar salidas digitales | Reg. 11: flags 0–3; reg. 12: máscara 0–7 |
@@ -83,7 +84,7 @@ Si el bit 5 del holding register 30 está a 1, leer **33 input registers desde e
 | 14 | 28–29 | ERRORPARAR |
 | 15 | 30–31 | UMIN |
 
-UMIN es el límite PWM negativo efectivo, siempre igual a −UMAX y de solo lectura. EMAX satura el error de entrada al PID, EMIN es la tolerancia de trayectoria y ERRORPARAR es el umbral de paro por error de seguimiento. MINPOS y MAXPOS son destinos absolutos permitidos para MUEVE. No limitan DAX ni el seguimiento continuo. Con bit 4 activo en el holding 30, leer los cuatro holding registers 40–43 por FC03 (dos int32, mínimo y máximo). FC16 desde 40 con los cuatro registros actualiza ambos en una operación. Un par inválido devuelve excepción Modbus y conserva los valores anteriores. JSON acepta `{"CMD":"DESTINOS","MINPOS":-1000,"MAXPOS":2000}` y los publica en EDOJ y PARAMETROS. El arranque del ESP32 comienza con el rango int32 completo.
+UMIN es el límite PWM negativo efectivo, siempre igual a −UMAX y de solo lectura. EMAX satura el error de entrada al PID, EMIN es la tolerancia de trayectoria y ERRORPARAR es el umbral de paro por error de seguimiento. MINPOS y MAXPOS son destinos absolutos permitidos para MUEVE. No limitan DAX ni el seguimiento continuo. Con bit 4 activo en el holding 30, leer los cuatro holding registers 40–43 por FC03 (dos int32, mínimo y máximo). FC16 desde 40 con los cuatro registros actualiza ambos en una operación. Un par inválido devuelve excepción Modbus y conserva los valores anteriores. JSON acepta `{"CMD":"DESTINOS","MINPOS":-1000,"MAXPOS":2000}` y los publica en EDOJ y PARAMETROS. Al arrancar se cargan MINPOS y MAXPOS de config.py. Sus valores de fábrica abarcan el rango int32 completo.
 
 Por JSON serie, enviar `{"CMD":"PARAMETROS"}`. Con HTTP habilitado, usar `GET /parametros` o enviar el mismo comando a `POST /post`.
 
