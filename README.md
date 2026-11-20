@@ -8,6 +8,17 @@ Reporte publicado: [CI-2026-03: ServoESP32](https://ceptiaunam.blogspot.com/2026
 
 El [maestro Flask](https://github.com/cadena7/ServoESP32_Master/blob/main/README.md) se ejecuta en la computadora o Raspberry Pi y permite entonar hasta cuatro ejes por RS485.
 
+## Documentación
+
+| Tema | Documentos |
+| --- | --- |
+| Entonación del eje | [Entonación PID y ensayo de escalón](auxiliares/docs/ENTONACION_PID.md) · [Parámetros de arranque en config.py](auxiliares/docs/CONFIGURACION.md) |
+| Instalación | [Placa, cableado y carga del firmware](auxiliares/docs/INSTALACION.md) |
+| Búsqueda de inicio | [Secuencia del maestro, offset y tolerancia](auxiliares/docs/SECUENCIA_DE_INICIO.md) · [Sensor de inicio y fines de carrera](auxiliares/docs/INICIO_Y_LIMITES.md) |
+| Control y comunicación | [Límites de recorrido y retirada del eje](auxiliares/docs/LIMITES.md) · [Comandos Modbus, JSON y HTTP](auxiliares/docs/PROTOCOLO.md) |
+| Validación | [Pruebas en computadora y en el banco](auxiliares/docs/PRUEBAS.md) · [Revisión y compatibilidad](auxiliares/docs/REVISION.md) · [Manifiesto SHA-256 del firmware original](auxiliares/docs/og-sha256.json) |
+| Mantenimiento | [Mejoras propuestas](auxiliares/docs/PROPUESTAS.md) · [Dependencias y licencias](auxiliares/docs/TERCEROS.md) |
+
 ## Archivos que se suben al ESP32
 
 **Carga todos los archivos `.py` de la raíz y la carpeta `lib/` completa**, conservando esa misma estructura en la placa. Los archivos auxiliares se encuentran en `auxiliares/`; el original permanece en `OG/`.
@@ -77,20 +88,6 @@ Ejemplos JSON por USB/UART0, un objeto por línea:
 | `auxiliares/tests/`, `auxiliares/tools/` | Pruebas en computadora y herramienta de carga |
 | `auxiliares/docs/` | Guías, revisión y manifiesto de integridad del original |
 | `OG/` | Original conservado; no se ejecuta ni se carga |
-
-## Documentación
-
-- [Instalación, placa Steren y cableado](auxiliares/docs/INSTALACION.md)
-- [Implementar la secuencia de inicio en un maestro](auxiliares/docs/SECUENCIA_DE_INICIO.md)
-- [Inicio y uno o dos fines de carrera: ejemplos completos](auxiliares/docs/INICIO_Y_LIMITES.md)
-- [Cómo entonar el PID y evaluar un ensayo de escalón](auxiliares/docs/ENTONACION_PID.md)
-- [Configuración y puntos de edición](auxiliares/docs/CONFIGURACION.md)
-- [Límites de recorrido y retirada con lazo cerrado](auxiliares/docs/LIMITES.md)
-- [Protocolo Modbus, JSON y HTTP](auxiliares/docs/PROTOCOLO.md)
-- [Revisión, correcciones y compatibilidad](auxiliares/docs/REVISION.md)
-- [Pruebas y validación pendiente en equipo](auxiliares/docs/PRUEBAS.md)
-- [Funciones propuestas para una siguiente etapa](auxiliares/docs/PROPUESTAS.md)
-- [Origen de dependencias y licencias](auxiliares/docs/TERCEROS.md)
 
 ## Pruebas
 
